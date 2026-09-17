@@ -721,22 +721,71 @@ function renderAdminEntries(kind){
 
 /* ---------------- AI Import (bring-your-own Anthropic key) ---------------- */
 function getAnthropicKey(){ return localStorage.getItem('uneswa_admin_anthropic_key') || ''; }
+function getAiProvider(){ return localStorage.getItem('uneswa_ai_provider') || 'anthropic'; }
+function getOllamaConfig(){
+  return {
+    baseUrl: localStorage.getItem('uneswa_ollama_base_url') || 'https://ollama.com',
+    apiKey: localStorage.getItem('uneswa_ollama_api_key') || '',
+    model: localStorage.getItem('uneswa_ollama_model') || ''
+  };
+}
 async function callClaudeBYOK(promptText){
   const key = getAnthropicKey();
-  if(!key) throw new Error('No API key set');
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
-    method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true'
-    },
-    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, messages:[{role:'user', content: promptText}] })
-  });
-  const data = await res.json();
-  if(data.error) throw new Error(data.error.message || 'API error');
+  if(!key) throw new Error('No API key saved — paste it above and click "Save settings" first.');
+  let res;
+  try{
+    res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, messages:[{role:'user', content: promptText}] })
+    });
+  }catch(networkErr){
+    throw new Error('Could not reach the Anthropic API from this browser (network or CORS issue). Check your connection and try again.');
+  }
+  let data;
+  try{ data = await res.json(); }catch(e){ throw new Error('Anthropic API returned an unreadable response (HTTP '+res.status+').'); }
+  if(!res.ok || data.error){
+    const msg = (data.error && data.error.message) || ('HTTP '+res.status);
+    if(res.status===401) throw new Error('Authentication failed — double-check your API key is correct and active. (' + msg + ')');
+    if(res.status===400 && /credit|billing/i.test(msg)) throw new Error('Your Anthropic account has no API credit yet — add a payment method at console.anthropic.com. (' + msg + ')');
+    throw new Error(msg);
+  }
   return (data.content||[]).map(b=>b.text||'').join('\n');
+}
+async function callOllama(promptText){
+  const { baseUrl, apiKey, model } = getOllamaConfig();
+  if(!model) throw new Error('No Ollama model name saved — enter one (e.g. gpt-oss:20b for cloud, or llama3.1 for local) and click "Save settings".');
+  const url = baseUrl.replace(/\/+$/,'') + '/v1/chat/completions';
+  let res;
+  try{
+    res = await fetch(url, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', ...(apiKey ? {'Authorization':'Bearer '+apiKey} : {}) },
+      body: JSON.stringify({ model, messages:[{role:'user', content: promptText}], max_tokens:2000 })
+    });
+  }catch(networkErr){
+    const hint = baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')
+      ? ' Make sure Ollama is running on this computer and started with OLLAMA_ORIGINS set to allow this site (see the note below the fields).'
+      : ' This may be a CORS restriction on Ollama Cloud from a browser — if it keeps failing, try running Ollama locally instead (free, and CORS-friendly once configured).';
+    throw new Error('Could not reach Ollama at ' + url + '.' + hint);
+  }
+  let data;
+  try{ data = await res.json(); }catch(e){ throw new Error('Ollama returned an unreadable response (HTTP '+res.status+').'); }
+  if(!res.ok || data.error){
+    const msg = (data.error && (data.error.message||data.error)) || ('HTTP '+res.status);
+    if(res.status===401) throw new Error('Authentication failed — check your Ollama Cloud API key. (' + msg + ')');
+    if(res.status===404) throw new Error('Model not found — pull/select it first (locally: "ollama pull '+model+'"). (' + msg + ')');
+    throw new Error(msg);
+  }
+  return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+}
+async function callAI(promptText){
+  return getAiProvider()==='ollama' ? callOllama(promptText) : callClaudeBYOK(promptText);
 }
 function parseJsonLoose(text){
   const cleaned = (text||'').replace(/```json|```/g,'').trim();
@@ -787,12 +836,20 @@ function loadPdfJs(){
 function renderAiImport(){
   const card=document.createElement('div'); card.className='card';
   const hasKey = !!getAnthropicKey();
+  const provider = getAiProvider();
+  const ollamaCfg = getOllamaConfig();
   card.innerHTML = `<h2><span class="htitle">AI Import</span></h2>
     <div class="infobox">Upload a timetable PDF (or paste text). The AI reads it and proposes structured entries — nothing is published until you review and confirm them.</div>
-    <div class="field"><label>Your Anthropic API key</label>
-      <input id="anthKey" type="password" placeholder="sk-ant-..." value="${hasKey?'••••••••••••••••':''}">
-      <div class="muted" style="margin-top:4px;">Stored only in your browser (never in the shared database). Get one at console.anthropic.com — each import uses a small amount of paid API credit on your account.</div></div>
-    <button class="btn small secondary" id="saveKeyBtn" style="margin-bottom:14px;">Save key</button>
+
+    <div class="field"><label>AI provider</label>
+      <select id="aiProviderSel">
+        <option value="anthropic" ${provider==='anthropic'?'selected':''}>Anthropic (Claude) — paid API key</option>
+        <option value="ollama" ${provider==='ollama'?'selected':''}>Ollama — free (cloud key or local, no cost)</option>
+      </select></div>
+
+    <div id="providerFieldsWrap"></div>
+    <button class="btn small secondary" id="saveKeyBtn" style="margin:10px 0 14px;">Save settings</button>
+
     <div class="row" style="margin-bottom:10px;">
       <label class="row" style="font-size:13px;"><input type="radio" name="aikind" value="modules" ${state.aiImportKind==='modules'?'checked':''}> Class timetable</label>
       <label class="row" style="font-size:13px;"><input type="radio" name="aikind" value="exams" ${state.aiImportKind==='exams'?'checked':''}> Exam timetable</label>
@@ -865,7 +922,7 @@ ${chunkText}
 """
 Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...", "start":"HH:MM", "end":"HH:MM", "venue":"..."}.
 Assign start/end times using the known columns in the order codes appear (first code(s) = 07:00-07:50, next column = 08:00-08:50, and so on). Make your best estimate if unsure — a human will review this before publishing. Skip anything unreadable.`;
-    const text = await callClaudeBYOK(prompt);
+    const text = await callAI(prompt);
     const arr = parseJsonLoose(text) || [];
     return arr.map(o=>({ code:o.code||'', day, start:o.start||'', end:o.end||'', venue:o.venue||'', programme, faculty, included:true }));
   }
@@ -877,7 +934,7 @@ Raw text:
 ${chunkText}
 """
 Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...", "date":"YYYY-MM-DD", "start":"HH:MM", "end":"HH:MM", "venue":"..."}. Skip anything unreadable.`;
-    const text = await callClaudeBYOK(prompt);
+    const text = await callAI(prompt);
     const arr = parseJsonLoose(text) || [];
     return arr.map(o=>({ code:o.code||'', date:o.date||'', start:o.start||'', end:o.end||'', venue:o.venue||'', programme, faculty, included:true }));
   }
@@ -909,17 +966,52 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
       }
       state.aiPending = state.aiPending.concat(newEntries);
       state.aiStatus = `Done — ${newEntries.length} entries proposed. Review below.`;
+      toast(state.aiStatus);
     }catch(err){
       console.error(err);
-      state.aiStatus = 'Something went wrong calling the AI: ' + err.message;
+      state.aiStatus = 'AI import failed: ' + err.message;
+      toast(state.aiStatus);
     }
     render();
   }
 
+  function renderProviderFields(){
+    const w = card.querySelector('#providerFieldsWrap');
+    const p = card.querySelector('#aiProviderSel').value;
+    if(p==='anthropic'){
+      w.innerHTML = `<div class="field"><label>Your Anthropic API key</label>
+        <input id="anthKey" type="password" placeholder="sk-ant-..." value="${hasKey?'••••••••••••••••':''}">
+        <div class="muted" style="margin-top:4px;">Stored only in your browser. Get one at console.anthropic.com — each import uses a small amount of paid API credit on your account.</div></div>`;
+    } else {
+      w.innerHTML = `<div class="row">
+          <div class="field" style="flex:1;"><label>Ollama base URL</label>
+            <input id="ollBase" value="${esc(ollamaCfg.baseUrl)}" placeholder="https://ollama.com or http://localhost:11434"></div>
+          <div class="field" style="flex:1;"><label>Model name</label>
+            <input id="ollModel" value="${esc(ollamaCfg.model)}" placeholder="e.g. gpt-oss:20b"></div>
+        </div>
+        <div class="field"><label>Ollama Cloud API key (leave blank for local)</label>
+          <input id="ollKey" type="password" value="${ollamaCfg.apiKey?'••••••••••••••••':''}" placeholder="only needed for ollama.com"></div>
+        <div class="muted" style="margin-top:2px;">Free at ollama.com/settings/keys. For a fully local $0 setup instead: install Ollama, run <code>ollama pull &lt;model&gt;</code>, then start it with <code>OLLAMA_ORIGINS=*</code> set so this page (a different site) is allowed to call it, and use base URL <code>http://localhost:11434</code> with no key.</div>`;
+    }
+  }
+  renderProviderFields();
+
   setTimeout(()=>{
+    card.querySelector('#aiProviderSel').onchange = (e)=>{ localStorage.setItem('uneswa_ai_provider', e.target.value); renderProviderFields(); };
     card.querySelector('#saveKeyBtn').onclick = ()=>{
-      const v = card.querySelector('#anthKey').value.trim();
-      if(v && !v.includes('•')){ localStorage.setItem('uneswa_admin_anthropic_key', v); toast('Key saved to this browser'); }
+      const p = card.querySelector('#aiProviderSel').value;
+      if(p==='anthropic'){
+        const v = card.querySelector('#anthKey').value.trim();
+        if(v && !v.includes('•')){ localStorage.setItem('uneswa_admin_anthropic_key', v); }
+      } else {
+        const base = card.querySelector('#ollBase').value.trim();
+        const model = card.querySelector('#ollModel').value.trim();
+        const key = card.querySelector('#ollKey').value.trim();
+        if(base) localStorage.setItem('uneswa_ollama_base_url', base);
+        if(model) localStorage.setItem('uneswa_ollama_model', model);
+        if(key && !key.includes('•')) localStorage.setItem('uneswa_ollama_api_key', key);
+      }
+      toast('Settings saved to this browser');
     };
     card.querySelectorAll('input[name=aikind]').forEach(r=>{ r.onchange = e=>{ state.aiImportKind=e.target.value; render(); }; });
     card.querySelector('#aiProg').oninput = e=>{ state.aiImportProgramme=e.target.value; };
