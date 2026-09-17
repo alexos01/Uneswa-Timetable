@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNESWA Timetable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --forest:#1F3D2E; --forest-deep:#132920; --paper:#FAF6EE; --panel:#FFFFFF;
+    --line:#E4DCC8; --terracotta:#C1552E; --terracotta-soft:#F3DCCB;
+    --mustard:#D9A441; --mustard-soft:#F5E6C2; --ink:#20261F; --ink-soft:#5B6357;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;font-size:15px;line-height:1.55;}
+  h1,h2,h3,.serif{font-family:'Fraunces',serif;}
+  button{font-family:inherit;cursor:pointer;}
+  input,select,textarea{font-family:inherit;font-size:14px;}
+  a{color:var(--terracotta);}
+
+  .topbar{background:var(--forest);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand .mark{width:34px;height:34px;border-radius:9px;background:var(--mustard);display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:700;color:var(--forest-deep);font-size:16px;}
+  .brand h1{font-size:19px;margin:0;font-weight:600;letter-spacing:.2px;}
+  .brand small{color:#C9D6C4;font-size:12px;}
+  .tabs{display:flex;gap:4px;background:rgba(255,255,255,.1);padding:4px;border-radius:999px;}
+  .tabs button{background:transparent;border:none;color:#D7E0D2;padding:9px 18px;border-radius:999px;font-size:13px;font-weight:600;}
+  .tabs button.active{background:var(--mustard);color:var(--forest-deep);}
+
+  main{max-width:1220px;margin:0 auto;padding:24px;}
+  .grid2{display:grid;grid-template-columns:340px 1fr;gap:20px;}
+  @media (max-width:900px){.grid2{grid-template-columns:1fr;}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:0 1px 2px rgba(31,61,46,.04);}
+  .card + .card{margin-top:18px;}
+  .card h2{font-size:15px;margin:0 0 12px;color:var(--forest-deep);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:600;font-family:'Inter',sans-serif;text-transform:uppercase;letter-spacing:.4px;font-size:12px;color:var(--ink-soft);}
+  .card h2 .htitle{font-family:'Fraunces',serif;text-transform:none;letter-spacing:0;font-size:17px;color:var(--forest-deep);font-weight:600;}
+  .muted{color:var(--ink-soft);font-size:13px;}
+
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px;font-weight:600;}
+  .field input,.field select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;}
+
+  .steplist{display:flex;flex-direction:column;gap:2px;}
+  .stepnum{display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--forest);color:#fff;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-right:7px;}
+
+  .modlist{max-height:360px;overflow:auto;border-top:1px solid var(--line);margin-top:6px;}
+  .modrow{display:flex;align-items:flex-start;gap:9px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:13px;}
+  .modrow input{margin-top:3px;}
+  .modrow .code{font-weight:600;}
+  .modrow .meta{color:var(--ink-soft);font-size:12px;}
+
+  .btn{border:1px solid var(--forest);background:var(--forest);color:#fff;padding:10px 16px;border-radius:9px;font-size:13px;font-weight:600;}
+  .btn.secondary{background:#fff;color:var(--forest);}
+  .btn.terracotta{background:var(--terracotta);border-color:var(--terracotta);color:#fff;}
+  .btn.danger{background:#fff;color:var(--terracotta);border-color:var(--terracotta-soft);}
+  .btn.small{padding:6px 11px;font-size:12px;}
+  .btn:disabled{opacity:.5;cursor:default;}
+  .row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;}
+
+  .today-banner{background:linear-gradient(135deg,var(--forest),var(--forest-deep));color:#fff;border-radius:var(--radius);padding:20px;margin-bottom:20px;}
+  .today-banner .lbl{font-size:11px;color:var(--mustard-soft);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;font-weight:600;}
+  .today-banner .next{font-size:22px;font-weight:600;font-family:'Fraunces',serif;}
+  .today-banner .subd{color:#C9D6C4;font-size:13px;margin-top:3px;}
+  .today-banner.empty{background:#fff;color:var(--ink);border:1px solid var(--line);}
+  .today-banner.empty .lbl{color:var(--ink-soft);}
+
+  .notice{background:var(--mustard-soft);border:1px solid var(--mustard);border-radius:var(--radius);padding:13px 15px;margin-bottom:18px;font-size:13px;display:flex;justify-content:space-between;gap:10px;align-items:center;}
+
+  .coursegroup{border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:10px;}
+  .coursegroup .cgtitle{font-family:'Fraunces',serif;font-weight:600;font-size:15px;color:var(--forest-deep);}
+  .coursegroup .cgfac{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px;}
+  .modchip{display:inline-block;background:var(--forest);color:#fff;font-size:11.5px;padding:3px 9px;border-radius:999px;margin:3px 4px 0 0;}
+
+  table.grid{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.grid th{background:var(--paper);font-weight:600;padding:7px;border:1px solid var(--line);text-align:left;font-size:11px;color:var(--ink-soft);}
+  table.grid td{border:1px solid var(--line);vertical-align:top;padding:4px;height:46px;width:19%;}
+  .cell-mod{background:var(--mustard-soft);border-left:3px solid var(--mustard);border-radius:6px;padding:5px 7px;font-size:11.5px;margin-bottom:3px;}
+  .cell-mod b{display:block;font-size:12.5px;}
+  .timecol{width:60px;font-size:11px;color:var(--ink-soft);white-space:nowrap;}
+
+  .examrow{display:flex;justify-content:space-between;padding:9px 2px;border-bottom:1px solid var(--line);font-size:13px;}
+  .examrow:last-child{border-bottom:none;}
+  .tag{display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:999px;background:var(--terracotta-soft);color:var(--terracotta);font-weight:700;}
+
+  .empty-state{padding:34px 10px;text-align:center;color:var(--ink-soft);}
+  .empty-state .big{font-size:36px;margin-bottom:8px;}
+
+  .adminlock{max-width:360px;margin:60px auto;text-align:center;}
+  .tablewrap{overflow:auto;}
+  table.admintbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+  table.admintbl th{text-align:left;padding:7px 9px;border-bottom:2px solid var(--line);color:var(--ink-soft);font-weight:600;font-size:11px;}
+  table.admintbl td{padding:7px 9px;border-bottom:1px solid var(--line);}
+  .pill{font-size:10.5px;padding:3px 9px;border-radius:999px;background:var(--forest);color:#fff;font-weight:700;}
+  .pill.outline{background:#fff;color:var(--forest);border:1px solid var(--forest);}
+  .admintabs{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;}
+  .admintabs button{background:#fff;border:1px solid var(--line);padding:8px 15px;border-radius:9px;font-size:13px;font-weight:600;}
+  .admintabs button.active{background:var(--forest);color:#fff;border-color:var(--forest);}
+  textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;min-height:90px;font-family:monospace;font-size:12px;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--forest-deep);color:#fff;padding:11px 20px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:50;max-width:90vw;text-align:center;}
+  .toast.show{opacity:1;}
+  .grid-note{font-size:12px;color:var(--ink-soft);margin-top:8px;}
+  .pagecard{border:1px solid var(--line);border-radius:9px;padding:11px;margin-bottom:10px;}
+  .pagecard .ptop{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .pagepreview{max-height:70px;overflow:hidden;font-size:11px;color:var(--ink-soft);font-family:monospace;white-space:pre-wrap;}
+  .warnbox{background:var(--terracotta-soft);color:var(--terracotta);border-radius:9px;padding:11px 13px;font-size:12.5px;margin-bottom:13px;}
+  .infobox{background:#E6EEE4;color:var(--forest-deep);border-radius:9px;padding:11px 13px;font-size:12.5px;margin-bottom:13px;}
+  .divider{height:1px;background:var(--line);margin:20px 0;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">
+    <span class="mark">UE</span>
+    <div><h1>UNESWA Timetable</h1><small id="semesterLabel">Loading…</small></div>
+  </div>
+  <div class="tabs">
+    <button id="tabStudentBtn" class="active">My Timetable</button>
+    <button id="tabAdminBtn">Admin</button>
+  </div>
+</div>
+<main id="main"></main>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= CONFIGURE ME =================
+   Paste your Supabase project URL + anon public key here.
+   Project Settings -> API in your Supabase dashboard. */
+const SUPABASE_URL = "https://supabase.com/dashboard/project/scmedarqqmpuhgdksthl";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjbWVkYXJxcW1wdWhnZGtzdGhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NzE3NjcsImV4cCI6MjEwNTE0Nzc2N30.-htGOuSxOp_TI8NYfbwBtn2I0ixCZJWkpmpgBScUrts";
+/* ================================================== */
+
+const sb = (SUPABASE_URL.includes('YOUR-PROJECT')) ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
+const HOURS = ["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00"];
+const SLOTS = ["07:00-07:50","08:00-08:50","09:00-09:50","10:00-10:50","11:00-11:50","12:00-12:50","13:00-13:50","14:00-14:50"];
+
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(window.__toastT);
+  window.__toastT = setTimeout(()=>t.classList.remove('show'), 2800);
+}
+function esc(s){ return (s||'').toString().replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* ---------------- app state ---------------- */
+const state = {
+  faculties:[], programmes:[], modules:[], exams:[],
+  meta:{semester:"Not set yet", updated_at:null, semester_version:1},
+  isAdmin:false, adminSession:null,
+  currentStudentId:null, currentStudent:null, resetNotice:false,
+  pickFaculty:'', pickProgramme:'',
+  notif:{enabled:false, minutesBefore:15},
+  tab:'student', adminTab:'faculties',
+  aiImportFaculty:'', aiImportProgramme:'', aiImportKind:'modules', aiPages:[], aiPending:[], aiStatus:'',
+  studentSearch:'', editingStudentId:null, students:[]
+};
+
+function progName(id){ const p = state.programmes.find(x=>x.id===id); return p? p.name : 'Unassigned'; }
+function facName(id){ const f = state.faculties.find(x=>x.id===id); return f? f.name : 'No faculty'; }
+function programmesInFaculty(facId){ return state.programmes.filter(p=>p.faculty_id===facId); }
+
+/* ---------------- config gate ---------------- */
+function renderNoConfig(){
+  const wrap = document.createElement('div');
+  wrap.className='card';
+  wrap.style.maxWidth='560px'; wrap.style.margin='60px auto';
+  wrap.innerHTML = `<h2><span class="htitle">Almost there</span></h2>
+    <p>This page needs to be pointed at your Supabase project before it will work. Open this HTML file in a text editor, and near the top of the &lt;script&gt; fill in:</p>
+    <pre style="background:var(--paper);padding:12px;border-radius:9px;font-size:12px;">const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";</pre>
+    <p class="muted">Both are on your Supabase dashboard under Project Settings → API. Save the file and reload this page.</p>`;
+  return wrap;
+}
+
+/* ---------------- data loading ---------------- */
+async function loadAll(){
+  const [f,p,m,e,s] = await Promise.all([
+    sb.from('faculties').select('*').order('name'),
+    sb.from('programmes').select('*').order('name'),
+    sb.from('modules').select('*').order('code'),
+    sb.from('exams').select('*').order('exam_date'),
+    sb.from('settings').select('*').eq('id',1).single()
+  ]);
+  state.faculties = f.data || [];
+  state.programmes = p.data || [];
+  state.modules = m.data || [];
+  state.exams = e.data || [];
+  if(s.data) state.meta = s.data;
+}
+function subscribeRealtime(){
+  sb.channel('db-changes')
+    .on('postgres_changes', {event:'*', schema:'public', table:'faculties'}, ()=>refreshAndRender())
+    .on('postgres_changes', {event:'*', schema:'public', table:'programmes'}, ()=>refreshAndRender())
+    .on('postgres_changes', {event:'*', schema:'public', table:'modules'}, ()=>refreshAndRender())
+    .on('postgres_changes', {event:'*', schema:'public', table:'exams'}, ()=>refreshAndRender())
+    .on('postgres_changes', {event:'*', schema:'public', table:'settings'}, ()=>refreshAndRender())
+    .subscribe();
+}
+async function refreshAndRender(){
+  const prevVersion = state.meta.semester_version;
+  await loadAll();
+  if(state.currentStudent && state.meta.semester_version !== prevVersion){
+    const wasReset = checkSemesterReset(state.currentStudent);
+    if(wasReset){ await saveStudent(state.currentStudent); state.resetNotice = true; }
+  }
+  render();
+}
+
+function checkSemesterReset(student){
+  const cur = state.meta.semester_version || 1;
+  if(student.semester_version !== cur){
+    student.history = student.history || [];
+    if(student.module_ids && student.module_ids.length){
+      student.history.push({semester_version:student.semester_version, module_ids:student.module_ids, archived_at:new Date().toISOString()});
+    }
+    student.module_ids = [];
+    student.semester_version = cur;
+    student.updated_at = new Date().toISOString();
+    return true;
+  }
+  return false;
+}
+async function saveStudent(student){
+  const { data, error } = await sb.from('students').upsert(student).select().single();
+  if(error){ console.error(error); toast('Could not save — check connection'); return null; }
+  state.currentStudent = data;
+  return data;
+}
+async function fetchStudent(id){
+  const { data } = await sb.from('students').select('*').eq('id', id).maybeSingle();
+  return data;
+}
+
+/* ---------------- tabs ---------------- */
+function setTab(t){ state.tab=t;
+  document.getElementById('tabStudentBtn').classList.toggle('active', t==='student');
+  document.getElementById('tabAdminBtn').classList.toggle('active', t==='admin');
+  render();
+}
+document.getElementById('tabStudentBtn').onclick = ()=>setTab('student');
+document.getElementById('tabAdminBtn').onclick = ()=>setTab('admin');
+
+function render(){
+  document.getElementById('semesterLabel').textContent =
+    state.meta.semester + (state.meta.updated_at ? ' · updated ' + new Date(state.meta.updated_at).toLocaleDateString() : '') + ' · v' + (state.meta.semester_version||1);
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+  if(!sb){ main.appendChild(renderNoConfig()); return; }
+  if(state.tab==='student') main.appendChild(renderStudent());
+  else main.appendChild(renderAdmin());
+}
+
+/* ================= STUDENT VIEW ================= */
+function myModules(student){ return state.modules.filter(m => (student.module_ids||[]).includes(m.id)); }
+function myExams(student){
+  const codes = new Set(myModules(student).map(m=>m.code));
+  return state.exams.filter(e => codes.has(e.code)).sort((a,b)=> (a.exam_date||'').localeCompare(b.exam_date||''));
+}
+function nextClass(student){
+  const now=new Date(); const dayNames=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const mods = myModules(student); const todayIdx = now.getDay(); const nowMin = now.getHours()*60+now.getMinutes();
+  const todays = mods.filter(m=>m.day===dayNames[todayIdx]);
+  const upcomingToday = todays.filter(m=>{ const [h,mi]=m.start_time.split(':').map(Number); return h*60+mi>=nowMin; }).sort((a,b)=>a.start_time.localeCompare(b.start_time));
+  if(upcomingToday.length) return {mod:upcomingToday[0], when:'today'};
+  for(let d=1; d<=6; d++){
+    const idx=(todayIdx+d)%7, dn=dayNames[idx];
+    const found = mods.filter(m=>m.day===dn).sort((a,b)=>a.start_time.localeCompare(b.start_time));
+    if(found.length) return {mod:found[0], when: d===1?'tomorrow':dn};
+  }
+  return null;
+}
+
+function renderStudentGate(){
+  const wrap=document.createElement('div');
+  wrap.innerHTML = `<div class="adminlock card">
+    <h2 style="justify-content:center;"><span class="htitle">Find your timetable</span></h2>
+    <div class="field"><label>Student number</label><input id="gateId" placeholder="e.g. 202100123"></div>
+    <div class="field"><label>Your name</label><input id="gateName" placeholder="e.g. Nomvula Dlamini"></div>
+    <button class="btn terracotta" id="gateGo" style="width:100%;">Continue</button>
+    <div class="muted" style="margin-top:10px;">Your module choices are saved to your student number so you can pick up where you left off.</div>
+  </div>`;
+  setTimeout(()=>{
+    document.getElementById('gateGo').onclick = async ()=>{
+      const id = document.getElementById('gateId').value.trim();
+      const name = document.getElementById('gateName').value.trim();
+      if(!id){ toast('Enter your student number'); return; }
+      document.getElementById('gateGo').disabled = true;
+      let student = await fetchStudent(id);
+      if(!student){ student = { id, name, programme_id:null, module_ids:[], semester_version: state.meta.semester_version, updated_at:new Date().toISOString(), history:[] }; }
+      else if(name) student.name = name;
+      const wasReset = checkSemesterReset(student);
+      const saved = await saveStudent(student);
+      if(saved){ state.currentStudentId = id; localStorage.setItem('uneswa_last_student', id); state.resetNotice = wasReset; }
+      render();
+    };
+  },0);
+  return wrap;
+}
+
+function renderStudent(){
+  const wrap = document.createElement('div');
+  const student = state.currentStudent;
+  if(!student){ wrap.appendChild(renderStudentGate()); return wrap; }
+
+  if(state.resetNotice){
+    const n=document.createElement('div'); n.className='notice';
+    n.innerHTML = `<span>New semester started (${esc(state.meta.semester)}) — your module list was cleared. Choose your modules again below.</span>
+      <button class="btn small secondary" id="dismissNotice">Got it</button>`;
+    wrap.appendChild(n);
+    setTimeout(()=>{ document.getElementById('dismissNotice').onclick=()=>{ state.resetNotice=false; render(); }; },0);
+  }
+
+  const idbar=document.createElement('div');
+  idbar.className='row'; idbar.style.marginBottom='14px'; idbar.style.justifyContent='space-between';
+  idbar.innerHTML = `<span class="muted">Signed in as <b>${esc(student.name||student.id)}</b> (${esc(student.id)})</span>
+    <button class="btn small secondary" id="switchStudentBtn">Switch student</button>`;
+  wrap.appendChild(idbar);
+  setTimeout(()=>{ document.getElementById('switchStudentBtn').onclick=()=>{ state.currentStudentId=null; state.currentStudent=null; localStorage.removeItem('uneswa_last_student'); render(); }; },0);
+
+  const nc = nextClass(student);
+  const banner=document.createElement('div');
+  if(nc){
+    banner.className='today-banner';
+    banner.innerHTML = `<div class="lbl">Next class · ${esc(nc.when)}</div>
+      <div class="next">${esc(nc.mod.code)} at ${esc(nc.mod.start_time)}</div>
+      <div class="subd">${esc(nc.mod.venue||'Venue TBC')} · ${esc(nc.mod.day)}</div>`;
+  } else {
+    banner.className='today-banner empty';
+    banner.innerHTML = `<div class="lbl">Next class</div><div class="next">Nothing scheduled</div>
+      <div class="subd">Pick your faculty and course below to build your timetable.</div>`;
+  }
+  wrap.appendChild(banner);
+
+  const grid2=document.createElement('div'); grid2.className='grid2';
+
+  const left=document.createElement('div');
+  left.innerHTML = `
+    <div class="card">
+      <h2><span class="htitle">Add your modules</span></h2>
+      <div class="field"><label><span class="stepnum">1</span>Faculty</label>
+        <select id="facSel"><option value="">Choose a faculty…</option>
+          ${state.faculties.map(f=>`<option value="${f.id}" ${state.pickFaculty===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}
+        </select></div>
+      <div class="field"><label><span class="stepnum">2</span>Course</label>
+        <select id="progSel"><option value="">Choose a course…</option></select></div>
+      <div class="field"><label><span class="stepnum">3</span>Modules on this course</label></div>
+      <div class="modlist" id="modList"></div>
+      <div class="divider"></div>
+      <div class="field"><label>Or search any module code (electives)</label><input id="modSearch" placeholder="e.g. ACF411"></div>
+      <div class="modlist" id="searchList" style="max-height:200px;"></div>
+    </div>
+    <div class="card">
+      <h2><span class="htitle">Reminders</span></h2>
+      <label class="row" style="font-size:13px;"><input type="checkbox" id="notifToggle" ${state.notif.enabled?'checked':''}> Notify me before class starts</label>
+      <div class="field" style="margin-top:10px;"><label>Minutes before</label>
+        <select id="notifMins">${[5,10,15,30,60].map(m=>`<option value="${m}" ${state.notif.minutesBefore===m?'selected':''}>${m} minutes</option>`).join('')}</select></div>
+      <div class="muted">Works while this app is open in your browser or installed on your phone/desktop.</div>
+    </div>`;
+  grid2.appendChild(left);
+
+  const right=document.createElement('div');
+  right.appendChild(renderMyCourses(student));
+  right.appendChild(renderWeekGrid(student));
+  right.appendChild(renderExamsCard(student));
+  grid2.appendChild(right);
+  wrap.appendChild(grid2);
+
+  setTimeout(()=>{
+    const facSel = document.getElementById('facSel');
+    const progSel = document.getElementById('progSel');
+    function refreshProgOptions(){
+      const opts = programmesInFaculty(state.pickFaculty);
+      progSel.innerHTML = `<option value="">Choose a course…</option>` + opts.map(p=>`<option value="${p.id}" ${state.pickProgramme===p.id?'selected':''}>${esc(p.name)}</option>`).join('');
+    }
+    facSel.onchange = e=>{ state.pickFaculty = e.target.value; state.pickProgramme=''; refreshProgOptions(); renderProgModList(student); };
+    progSel.onchange = e=>{ state.pickProgramme = e.target.value; renderProgModList(student); };
+    refreshProgOptions();
+    renderProgModList(student);
+    document.getElementById('modSearch').oninput = e=>renderSearchList(student, e.target.value);
+    const nt=document.getElementById('notifToggle');
+    nt.onchange = async (e)=>{
+      state.notif.enabled = e.target.checked;
+      if(e.target.checked && 'Notification' in window){
+        const perm = await Notification.requestPermission();
+        if(perm!=='granted'){ state.notif.enabled=false; e.target.checked=false; toast('Notifications blocked in browser settings'); }
+      }
+      localStorage.setItem('uneswa_notif', JSON.stringify(state.notif));
+    };
+    document.getElementById('notifMins').onchange = e=>{ state.notif.minutesBefore=Number(e.target.value); localStorage.setItem('uneswa_notif', JSON.stringify(state.notif)); };
+  },0);
+
+  return wrap;
+}
+
+async function toggleModule(student, moduleId, checked){
+  student.module_ids = student.module_ids || [];
+  if(checked){ if(!student.module_ids.includes(moduleId)) student.module_ids.push(moduleId); }
+  else student.module_ids = student.module_ids.filter(x=>x!==moduleId);
+  student.semester_version = state.meta.semester_version;
+  student.updated_at = new Date().toISOString();
+  await saveStudent(student);
+  render();
+}
+
+function renderProgModList(student){
+  const el = document.getElementById('modList');
+  if(!el) return;
+  if(!state.pickProgramme){ el.innerHTML = `<div class="empty-state">Pick a faculty and course above to see its modules.</div>`; return; }
+  const mods = state.modules.filter(m=>m.programme_id===state.pickProgramme).sort((a,b)=>a.code.localeCompare(b.code));
+  if(mods.length===0){ el.innerHTML = `<div class="empty-state">No modules loaded for this course yet.</div>`; return; }
+  el.innerHTML = mods.map(m=>{
+    const checked = (student.module_ids||[]).includes(m.id);
+    return `<label class="modrow"><input type="checkbox" data-id="${m.id}" ${checked?'checked':''}>
+      <div><div class="code">${esc(m.code)}</div><div class="meta">${esc(m.day)} · ${esc(m.start_time)}–${esc(m.end_time||'')} · ${esc(m.venue||'TBC')}</div></div></label>`;
+  }).join('');
+  el.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.onchange = e=>toggleModule(student, e.target.getAttribute('data-id'), e.target.checked); });
+}
+function renderSearchList(student, q){
+  const el = document.getElementById('searchList');
+  q=(q||'').trim().toLowerCase();
+  if(!q){ el.innerHTML=''; return; }
+  const mods = state.modules.filter(m=>m.code.toLowerCase().includes(q)).slice(0,40);
+  el.innerHTML = mods.map(m=>{
+    const checked = (student.module_ids||[]).includes(m.id);
+    return `<label class="modrow"><input type="checkbox" data-id="${m.id}" ${checked?'checked':''}>
+      <div><div class="code">${esc(m.code)} <span class="muted">· ${esc(progName(m.programme_id))}</span></div>
+      <div class="meta">${esc(m.day)} · ${esc(m.start_time)}–${esc(m.end_time||'')} · ${esc(m.venue||'TBC')}</div></div></label>`;
+  }).join('') || `<div class="empty-state">No matches.</div>`;
+  el.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.onchange = e=>toggleModule(student, e.target.getAttribute('data-id'), e.target.checked); });
+}
+
+function renderMyCourses(student){
+  const card=document.createElement('div'); card.className='card';
+  const mods = myModules(student);
+  card.innerHTML = `<h2><span class="htitle">My registered courses</span> <span class="pill">${mods.length} modules</span></h2>`;
+  if(mods.length===0){ card.innerHTML += `<div class="empty-state"><div class="big">📚</div>Nothing selected yet — choose a faculty and course on the left.</div>`; return card; }
+  const byProg = {};
+  mods.forEach(m=>{ (byProg[m.programme_id]=byProg[m.programme_id]||[]).push(m); });
+  Object.keys(byProg).forEach(pid=>{
+    const g=document.createElement('div'); g.className='coursegroup';
+    g.innerHTML = `<div class="cgfac">${esc(facName(state.programmes.find(p=>p.id===pid)?.faculty_id))}</div>
+      <div class="cgtitle">${esc(progName(pid))}</div>
+      <div>${byProg[pid].map(m=>`<span class="modchip">${esc(m.code)}</span>`).join('')}</div>`;
+    card.appendChild(g);
+  });
+  return card;
+}
+
+function renderWeekGrid(student){
+  const card=document.createElement('div'); card.className='card';
+  const mods = myModules(student);
+  card.innerHTML = `<h2><span class="htitle">Weekly timetable</span> <button class="btn small terracotta" id="exportPdfBtn">Export PDF</button></h2>`;
+  if(mods.length===0){ card.appendChild(Object.assign(document.createElement('div'),{className:'empty-state',innerHTML:'<div class="big">📭</div>Nothing to show yet.'})); return card; }
+  const table=document.createElement('table'); table.className='grid';
+  let thead='<tr><th class="timecol">Time</th>'+DAYS.map(d=>`<th>${d}</th>`).join('')+'</tr>';
+  let rows='';
+  HOURS.forEach(h=>{
+    const hourNum=Number(h.split(':')[0]);
+    rows+=`<tr><td class="timecol">${h}</td>`;
+    DAYS.forEach(day=>{
+      const cellMods = mods.filter(m=> m.day===day && Number(m.start_time.split(':')[0])===hourNum);
+      rows+=`<td>${cellMods.map(m=>`<div class="cell-mod"><b>${esc(m.code)}</b>${esc(m.start_time)}–${esc(m.end_time||'')}<br>${esc(m.venue||'TBC')}</div>`).join('')}</td>`;
+    });
+    rows+='</tr>';
+  });
+  table.innerHTML = thead+rows;
+  card.appendChild(table);
+  setTimeout(()=>{ document.getElementById('exportPdfBtn').onclick = ()=>exportPdf(student); },0);
+  return card;
+}
+
+function renderExamsCard(student){
+  const card=document.createElement('div'); card.className='card';
+  const exams = myExams(student);
+  card.innerHTML = `<h2><span class="htitle">My exams</span> <span class="tag">${exams.length}</span></h2>`;
+  if(exams.length===0){ card.innerHTML += `<div class="muted">No exam dates published yet for your modules.</div>`; }
+  else exams.forEach(e=>{
+    const row=document.createElement('div'); row.className='examrow';
+    row.innerHTML = `<span><b>${esc(e.code)}</b> &nbsp; <span class="muted">${esc(e.venue||'Venue TBC')}</span></span>
+      <span>${e.exam_date?new Date(e.exam_date).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}):'TBC'} · ${esc(e.start_time||'')}</span>`;
+    card.appendChild(row);
+  });
+  return card;
+}
+
+function exportPdf(student){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(16); doc.text('UNESWA Personal Timetable', 14, 16);
+  doc.setFontSize(10); doc.text(`${student.name || student.id}  ·  ${state.meta.semester || ''}`, 14, 23);
+  const mods = myModules(student).slice().sort((a,b)=> DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || a.start_time.localeCompare(b.start_time));
+  doc.autoTable({ startY:28, head:[['Day','Time','Module','Venue']], body: mods.map(m=>[m.day, `${m.start_time}-${m.end_time||''}`, m.code, m.venue||'TBC']), styles:{fontSize:9} });
+  const exams = myExams(student);
+  if(exams.length){
+    let y = doc.lastAutoTable.finalY + 10;
+    doc.setFontSize(12); doc.text('Exam schedule', 14, y);
+    doc.autoTable({ startY:y+4, head:[['Module','Date','Time','Venue']], body: exams.map(e=>[e.code, e.exam_date||'TBC', e.start_time||'', e.venue||'TBC']), styles:{fontSize:9} });
+  }
+  doc.save('uneswa-timetable.pdf');
+  toast('PDF downloaded');
+}
+
+setInterval(()=>{
+  const student = state.currentStudent;
+  if(!student || !state.notif.enabled || !('Notification' in window) || Notification.permission!=='granted') return;
+  const now=new Date(); const dayNames=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const today=dayNames[now.getDay()]; const nowMin=now.getHours()*60+now.getMinutes();
+  myModules(student).forEach(m=>{
+    if(m.day!==today) return;
+    const [h,mi]=m.start_time.split(':').map(Number); const startMin=h*60+mi;
+    if(startMin-nowMin===state.notif.minutesBefore){
+      const key='notified-'+m.id+'-'+now.toDateString();
+      if(sessionStorage.getItem(key)) return;
+      sessionStorage.setItem(key,'1');
+      new Notification(`${m.code} starts in ${state.notif.minutesBefore} min`, { body:`${m.venue||'Venue TBC'} · ${m.start_time}-${m.end_time||''}` });
+    }
+  });
+}, 30000);
+
+/* ================= ADMIN VIEW ================= */
+function renderAdmin(){
+  const wrap=document.createElement('div');
+  if(!state.isAdmin){
+    wrap.innerHTML = `<div class="adminlock card">
+      <h2 style="justify-content:center;"><span class="htitle">Admin sign-in</span></h2>
+      <div class="field"><label>Email</label><input id="adminEmail" type="email" placeholder="admin@uneswa.ac.sz"></div>
+      <div class="field"><label>Password</label><input id="adminPass" type="password"></div>
+      <button class="btn terracotta" id="adminGoBtn" style="width:100%;">Sign in</button>
+      <div class="muted" style="margin-top:10px;">Create this login once in your Supabase dashboard under Authentication → Users.</div>
+    </div>`;
+    setTimeout(()=>{
+      document.getElementById('adminGoBtn').onclick = async ()=>{
+        const email = document.getElementById('adminEmail').value.trim();
+        const password = document.getElementById('adminPass').value;
+        if(!email || !password){ toast('Enter email and password'); return; }
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if(error){ toast(error.message); return; }
+        state.isAdmin = true; state.adminSession = data.session;
+        render();
+      };
+    },0);
+    return wrap;
+  }
+
+  wrap.innerHTML = `<div class="row" style="justify-content:space-between;margin-bottom:16px;">
+    <div class="admintabs">
+      <button data-t="faculties" class="${state.adminTab==='faculties'?'active':''}">Faculties &amp; Courses</button>
+      <button data-t="modules" class="${state.adminTab==='modules'?'active':''}">Class timetable</button>
+      <button data-t="exams" class="${state.adminTab==='exams'?'active':''}">Exam timetable</button>
+      <button data-t="aiimport" class="${state.adminTab==='aiimport'?'active':''}">AI Import</button>
+      <button data-t="students" class="${state.adminTab==='students'?'active':''}">Students</button>
+      <button data-t="settings" class="${state.adminTab==='settings'?'active':''}">Settings</button>
+    </div>
+    <button class="btn secondary small" id="signOutBtn">Sign out</button>
+  </div>
+  <div id="adminBody"></div>`;
+
+  setTimeout(async ()=>{
+    wrap.querySelectorAll('.admintabs button').forEach(b=>{ b.onclick=()=>{ state.adminTab=b.getAttribute('data-t'); render(); }; });
+    document.getElementById('signOutBtn').onclick = async ()=>{ await sb.auth.signOut(); state.isAdmin=false; render(); };
+    const body = document.getElementById('adminBody');
+    if(state.adminTab==='faculties') body.appendChild(renderAdminFaculties());
+    else if(state.adminTab==='modules') body.appendChild(renderAdminEntries('modules'));
+    else if(state.adminTab==='exams') body.appendChild(renderAdminEntries('exams'));
+    else if(state.adminTab==='aiimport') body.appendChild(renderAiImport());
+    else if(state.adminTab==='students'){ await loadStudentsList(); body.appendChild(renderAdminStudents()); }
+    else body.appendChild(renderAdminSettings());
+  },0);
+  return wrap;
+}
+
+/* ---------------- Faculties & Courses ---------------- */
+function renderAdminFaculties(){
+  const card=document.createElement('div'); card.className='card';
+  card.innerHTML = `<h2><span class="htitle">Faculties</span></h2>
+    <div class="row"><input id="newFacName" placeholder="New faculty name" style="flex:1;padding:9px;border:1px solid var(--line);border-radius:9px;">
+      <button class="btn" id="addFacBtn">Add faculty</button></div>
+    <div class="tablewrap" style="margin-top:14px;"><table class="admintbl"><thead><tr><th>Faculty</th><th>Courses</th><th></th></tr></thead>
+      <tbody id="facRows"></tbody></table></div>
+    <div class="divider"></div>
+    <h2><span class="htitle">Courses (programmes)</span></h2>
+    <div class="row">
+      <input id="newProgName" placeholder="New course name" style="flex:1;min-width:180px;padding:9px;border:1px solid var(--line);border-radius:9px;">
+      <select id="newProgFac" style="padding:9px;border:1px solid var(--line);border-radius:9px;">
+        <option value="">No faculty yet</option>
+        ${state.faculties.map(f=>`<option value="${f.id}">${esc(f.name)}</option>`).join('')}
+      </select>
+      <button class="btn" id="addProgBtn">Add course</button>
+    </div>
+    <div class="tablewrap" style="margin-top:14px;"><table class="admintbl"><thead><tr><th>Course</th><th>Faculty</th><th>Modules</th><th></th></tr></thead>
+      <tbody id="progRows"></tbody></table></div>`;
+
+  function refreshFac(){
+    card.querySelector('#facRows').innerHTML = state.faculties.map(f=>`<tr>
+      <td><b>${esc(f.name)}</b></td><td>${programmesInFaculty(f.id).length}</td>
+      <td><button class="btn small danger" data-delfac="${f.id}">Delete</button></td></tr>`).join('')
+      || `<tr><td colspan="3" class="muted" style="padding:14px;">No faculties yet.</td></tr>`;
+    card.querySelectorAll('[data-delfac]').forEach(b=>{
+      b.onclick = async ()=>{
+        if(!confirm('Delete this faculty? Its courses will become unassigned.')) return;
+        await sb.from('faculties').delete().eq('id', b.getAttribute('data-delfac'));
+        toast('Faculty deleted');
+      };
+    });
+  }
+  function refreshProg(){
+    card.querySelector('#progRows').innerHTML = state.programmes.map(p=>`<tr>
+      <td><b>${esc(p.name)}</b></td>
+      <td><select data-reassign="${p.id}" style="padding:5px;border:1px solid var(--line);border-radius:7px;">
+        <option value="">No faculty</option>
+        ${state.faculties.map(f=>`<option value="${f.id}" ${p.faculty_id===f.id?'selected':''}>${esc(f.name)}</option>`).join('')}
+      </select></td>
+      <td>${state.modules.filter(m=>m.programme_id===p.id).length}</td>
+      <td><button class="btn small danger" data-delprog="${p.id}">Delete</button></td></tr>`).join('')
+      || `<tr><td colspan="4" class="muted" style="padding:14px;">No courses yet.</td></tr>`;
+    card.querySelectorAll('[data-reassign]').forEach(sel=>{
+      sel.onchange = async (e)=>{
+        await sb.from('programmes').update({faculty_id: e.target.value || null}).eq('id', sel.getAttribute('data-reassign'));
+        toast('Faculty updated');
+      };
+    });
+    card.querySelectorAll('[data-delprog]').forEach(b=>{
+      b.onclick = async ()=>{
+        if(!confirm('Delete this course? Its modules and exam entries will be deleted too.')) return;
+        await sb.from('programmes').delete().eq('id', b.getAttribute('data-delprog'));
+        toast('Course deleted');
+      };
+    });
+  }
+  refreshFac(); refreshProg();
+  setTimeout(()=>{
+    card.querySelector('#addFacBtn').onclick = async ()=>{
+      const name = card.querySelector('#newFacName').value.trim();
+      if(!name){ toast('Enter a faculty name'); return; }
+      const { error } = await sb.from('faculties').insert({name});
+      if(error) toast(error.message); else { toast('Faculty added'); card.querySelector('#newFacName').value=''; }
+    };
+    card.querySelector('#addProgBtn').onclick = async ()=>{
+      const name = card.querySelector('#newProgName').value.trim();
+      const faculty_id = card.querySelector('#newProgFac').value || null;
+      if(!name){ toast('Enter a course name'); return; }
+      const { error } = await sb.from('programmes').insert({name, faculty_id});
+      if(error) toast(error.message); else { toast('Course added'); card.querySelector('#newProgName').value=''; }
+    };
+  },0);
+  return card;
+}
+
+/* ---------------- class/exam entries ---------------- */
+async function resolveProgrammeId(name, facultyName){
+  name = (name||'').trim(); if(!name) return null;
+  let prog = state.programmes.find(p=>p.name.toLowerCase()===name.toLowerCase());
+  if(prog) return prog.id;
+  let faculty_id = null;
+  if(facultyName){
+    const fname = facultyName.trim();
+    let fac = state.faculties.find(f=>f.name.toLowerCase()===fname.toLowerCase());
+    if(!fac){ const {data} = await sb.from('faculties').insert({name:fname}).select().single(); fac=data; state.faculties.push(fac); }
+    if(fac) faculty_id = fac.id;
+  }
+  const { data, error } = await sb.from('programmes').insert({name, faculty_id}).select().single();
+  if(error){ console.error(error); return null; }
+  state.programmes.push(data);
+  return data.id;
+}
+
+function renderAdminEntries(kind){
+  const isMod = kind==='modules';
+  const list = isMod ? state.modules : state.exams;
+  const card=document.createElement('div'); card.className='card';
+  card.innerHTML = `<h2><span class="htitle">${isMod?'Class timetable':'Exam timetable'}</span> <span class="pill">${list.length} entries</span></h2>
+    <div class="field"><label>Bulk import (paste, one entry per line)</label>
+      <textarea id="bulkArea" placeholder="${isMod?'ACF411, Monday, 07:00, 07:50, G.005/G.006, Bachelor of Commerce':'ACF411, 2026-12-05, 09:00, 12:00, MPH, Bachelor of Commerce'}"></textarea>
+      <div class="muted" style="margin-top:4px;">Format: ${isMod?'code, day, start, end, venue, course name':'code, date (YYYY-MM-DD), start, end, venue, course name'}. Unknown course names are created automatically (with no faculty — assign one in Faculties &amp; Courses). Prefer AI Import for a whole released timetable.</div>
+    </div>
+    <div class="row"><button class="btn terracotta" id="importBtn">Import lines</button></div>
+    <div class="tablewrap" style="margin-top:16px;"><table class="admintbl"><thead><tr>
+      <th>Code</th><th>Course</th><th>${isMod?'Day':'Date'}</th><th>Time</th><th>Venue</th><th></th></tr></thead>
+      <tbody id="entryRows"></tbody></table></div>`;
+
+  function refreshRows(){
+    const tb = card.querySelector('#entryRows');
+    tb.innerHTML = list.map(e=>`<tr><td><b>${esc(e.code)}</b></td><td>${esc(progName(e.programme_id))}</td>
+      <td>${isMod?esc(e.day):esc(e.exam_date||'')}</td><td>${esc(e.start_time||'')}${e.end_time?'–'+esc(e.end_time):''}</td>
+      <td>${esc(e.venue||'')}</td><td><button class="btn small danger" data-del="${e.id}">Delete</button></td></tr>`).join('')
+      || `<tr><td colspan="6" class="muted" style="padding:14px;">No entries yet.</td></tr>`;
+    tb.querySelectorAll('[data-del]').forEach(b=>{
+      b.onclick = async ()=>{ await sb.from(isMod?'modules':'exams').delete().eq('id', b.getAttribute('data-del')); toast('Deleted'); };
+    });
+  }
+  refreshRows();
+
+  setTimeout(()=>{
+    card.querySelector('#importBtn').onclick = async ()=>{
+      const raw = card.querySelector('#bulkArea').value.trim();
+      if(!raw) return;
+      const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
+      let added=0;
+      for(const line of lines){
+        const parts = line.split(',').map(s=>s.trim());
+        if(parts.length<6) continue;
+        const [code,a,start,end,venue,progNameStr]=parts;
+        const programme_id = await resolveProgrammeId(progNameStr, null);
+        const entry = isMod ? {code,day:a,start_time:start,end_time:end,venue,programme_id} : {code,exam_date:a,start_time:start,end_time:end,venue,programme_id};
+        const { error } = await sb.from(isMod?'modules':'exams').insert(entry);
+        if(!error) added++;
+      }
+      toast(added+' entries imported'); card.querySelector('#bulkArea').value='';
+    };
+  },0);
+  return card;
+}
+
+/* ---------------- AI Import (bring-your-own Anthropic key) ---------------- */
+function getAnthropicKey(){ return localStorage.getItem('uneswa_admin_anthropic_key') || ''; }
+async function callClaudeBYOK(promptText){
+  const key = getAnthropicKey();
+  if(!key) throw new Error('No API key set');
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, messages:[{role:'user', content: promptText}] })
+  });
+  const data = await res.json();
+  if(data.error) throw new Error(data.error.message || 'API error');
+  return (data.content||[]).map(b=>b.text||'').join('\n');
+}
+function parseJsonLoose(text){
+  const cleaned = (text||'').replace(/```json|```/g,'').trim();
+  try{ return JSON.parse(cleaned); }catch(e){}
+  const m = cleaned.match(/\[[\s\S]*\]/);
+  if(m){ try{ return JSON.parse(m[0]); }catch(e2){} }
+  return null;
+}
+function chunkByChars(text, maxChars){
+  const words = text.split(/\s+/); const chunks=[]; let cur=[];
+  words.forEach(w=>{ if(cur.join(' ').length+w.length+1>maxChars){ chunks.push(cur.join(' ')); cur=[]; } cur.push(w); });
+  if(cur.length) chunks.push(cur.join(' '));
+  return chunks.filter(c=>c.trim().length>10);
+}
+function splitModuleTextByDay(text){
+  const dayRegex = /(Monday|Tuesday|Wednesday|Thursday|Friday)/g;
+  const idxs=[]; let m;
+  while((m=dayRegex.exec(text))){ idxs.push({day:m[1], index:m.index}); }
+  if(idxs.length===0) return [{day:'Unknown', text}];
+  const segs=[];
+  for(let i=0;i<idxs.length;i++){
+    const start=idxs[i].index; const end=i+1<idxs.length?idxs[i+1].index:text.length;
+    segs.push({day:idxs[i].day, text:text.slice(start,end)});
+  }
+  return segs;
+}
+async function extractPdfPages(file){
+  if(!window.pdfjsLib){ await loadPdfJs(); }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data:buf}).promise;
+  const pages=[];
+  for(let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    pages.push(content.items.map(it=>it.str).join(' '));
+  }
+  return pages;
+}
+function loadPdfJs(){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=resolve; s.onerror=reject; document.head.appendChild(s);
+  });
+}
+
+function renderAiImport(){
+  const card=document.createElement('div'); card.className='card';
+  const hasKey = !!getAnthropicKey();
+  card.innerHTML = `<h2><span class="htitle">AI Import</span></h2>
+    <div class="infobox">Upload a timetable PDF (or paste text). The AI reads it and proposes structured entries — nothing is published until you review and confirm them.</div>
+    <div class="field"><label>Your Anthropic API key</label>
+      <input id="anthKey" type="password" placeholder="sk-ant-..." value="${hasKey?'••••••••••••••••':''}">
+      <div class="muted" style="margin-top:4px;">Stored only in your browser (never in the shared database). Get one at console.anthropic.com — each import uses a small amount of paid API credit on your account.</div></div>
+    <button class="btn small secondary" id="saveKeyBtn" style="margin-bottom:14px;">Save key</button>
+    <div class="row" style="margin-bottom:10px;">
+      <label class="row" style="font-size:13px;"><input type="radio" name="aikind" value="modules" ${state.aiImportKind==='modules'?'checked':''}> Class timetable</label>
+      <label class="row" style="font-size:13px;"><input type="radio" name="aikind" value="exams" ${state.aiImportKind==='exams'?'checked':''}> Exam timetable</label>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1;"><label>Faculty</label><input id="aiFac" placeholder="e.g. Faculty of Commerce" value="${esc(state.aiImportFaculty)}"></div>
+      <div class="field" style="flex:1;"><label>Course this import belongs to</label><input id="aiProg" placeholder="e.g. Bachelor of Commerce" value="${esc(state.aiImportProgramme)}"></div>
+    </div>
+    <div class="field"><label>Upload PDF</label><input type="file" id="aiPdfInput" accept="application/pdf"></div>
+    <div id="aiPagesWrap"></div>
+    <div class="field"><label>...or paste raw text directly</label><textarea id="aiPasteArea" placeholder="Paste a page or section of the released timetable here"></textarea></div>
+    <div class="row"><button class="btn terracotta" id="aiParsePasteBtn">Parse pasted text with AI</button></div>
+    <div class="muted" id="aiStatusLine" style="margin-top:8px;"></div>
+    <div id="aiPendingWrap" style="margin-top:16px;"></div>`;
+
+  function refreshStatus(){ card.querySelector('#aiStatusLine').textContent = state.aiStatus; }
+
+  function renderPendingTable(){
+    const w = card.querySelector('#aiPendingWrap');
+    if(state.aiPending.length===0){ w.innerHTML=''; return; }
+    const isMod = state.aiImportKind==='modules';
+    w.innerHTML = `<h2><span class="htitle">Review before publishing</span> <span class="pill outline">${state.aiPending.length} proposed</span></h2>
+      <div class="warnbox">Double-check times and venues — text extracted from PDFs can shift columns. Uncheck or edit anything wrong before adding.</div>
+      <div class="tablewrap"><table class="admintbl"><thead><tr>
+        <th></th><th>Code</th><th>${isMod?'Day':'Date'}</th><th>Start</th><th>End</th><th>Venue</th><th></th>
+      </tr></thead><tbody id="pendingRows"></tbody></table></div>
+      <div class="row" style="margin-top:10px;">
+        <button class="btn" id="addPendingBtn">Add checked entries to timetable</button>
+        <button class="btn danger" id="clearPendingBtn">Discard all</button>
+      </div>`;
+    const tb = w.querySelector('#pendingRows');
+    tb.innerHTML = state.aiPending.map((p,i)=>`<tr>
+      <td><input type="checkbox" data-i="${i}" class="pinc" ${p.included?'checked':''}></td>
+      <td><input data-i="${i}" data-f="code" value="${esc(p.code)}" style="width:90px;padding:4px;border:1px solid var(--line);border-radius:6px;"></td>
+      <td><input data-i="${i}" data-f="${isMod?'day':'date'}" value="${esc(isMod?p.day:p.date)}" style="width:100px;padding:4px;border:1px solid var(--line);border-radius:6px;"></td>
+      <td><input data-i="${i}" data-f="start" value="${esc(p.start)}" style="width:70px;padding:4px;border:1px solid var(--line);border-radius:6px;"></td>
+      <td><input data-i="${i}" data-f="end" value="${esc(p.end)}" style="width:70px;padding:4px;border:1px solid var(--line);border-radius:6px;"></td>
+      <td><input data-i="${i}" data-f="venue" value="${esc(p.venue)}" style="width:110px;padding:4px;border:1px solid var(--line);border-radius:6px;"></td>
+      <td><button class="btn small danger" data-del="${i}">✕</button></td>
+    </tr>`).join('');
+    tb.querySelectorAll('.pinc').forEach(cb=>{ cb.onchange = e=>{ state.aiPending[Number(e.target.dataset.i)].included = e.target.checked; }; });
+    tb.querySelectorAll('input[data-f]').forEach(inp=>{ inp.oninput = e=>{ state.aiPending[Number(e.target.dataset.i)][e.target.dataset.f] = e.target.value; }; });
+    tb.querySelectorAll('[data-del]').forEach(b=>{ b.onclick = ()=>{ state.aiPending.splice(Number(b.dataset.del),1); renderPendingTable(); }; });
+    w.querySelector('#addPendingBtn').onclick = async ()=>{
+      const toAdd = state.aiPending.filter(p=>p.included);
+      let added=0;
+      for(const p of toAdd){
+        const programme_id = await resolveProgrammeId(p.programme, p.faculty);
+        const entry = isMod ? {code:p.code, day:p.day, start_time:p.start, end_time:p.end, venue:p.venue, programme_id}
+                             : {code:p.code, exam_date:p.date, start_time:p.start, end_time:p.end, venue:p.venue, programme_id};
+        const { error } = await sb.from(isMod?'modules':'exams').insert(entry);
+        if(!error) added++;
+      }
+      toast(added+' entries added to the timetable');
+      state.aiPending = [];
+      render();
+    };
+    w.querySelector('#clearPendingBtn').onclick = ()=>{ state.aiPending=[]; render(); };
+  }
+  renderPendingTable();
+
+  async function parseModulesChunk(chunkText, day, programme, faculty){
+    const prompt = `You are extracting a university class timetable from messy text pulled out of a PDF table.
+Day: ${day}
+The known time columns in order are: ${SLOTS.join(', ')}.
+Module codes look like 2-4 letters followed by 3 digits, sometimes with a suffix like (N2) or (A). Venues are short codes like "G.005/G.006", "MPH", "SC.LEC.TH.I", or room numbers.
+Raw text for this day:
+"""
+${chunkText}
+"""
+Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...", "start":"HH:MM", "end":"HH:MM", "venue":"..."}.
+Assign start/end times using the known columns in the order codes appear (first code(s) = 07:00-07:50, next column = 08:00-08:50, and so on). Make your best estimate if unsure — a human will review this before publishing. Skip anything unreadable.`;
+    const text = await callClaudeBYOK(prompt);
+    const arr = parseJsonLoose(text) || [];
+    return arr.map(o=>({ code:o.code||'', day, start:o.start||'', end:o.end||'', venue:o.venue||'', programme, faculty, included:true }));
+  }
+  async function parseExamsChunk(chunkText, programme, faculty){
+    const prompt = `Extract an exam timetable from this raw text pulled out of a PDF or pasted by an admin.
+Module codes look like 2-4 letters followed by 3 digits. Dates may appear in various formats — convert to YYYY-MM-DD, guessing the year from context if needed.
+Raw text:
+"""
+${chunkText}
+"""
+Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...", "date":"YYYY-MM-DD", "start":"HH:MM", "end":"HH:MM", "venue":"..."}. Skip anything unreadable.`;
+    const text = await callClaudeBYOK(prompt);
+    const arr = parseJsonLoose(text) || [];
+    return arr.map(o=>({ code:o.code||'', date:o.date||'', start:o.start||'', end:o.end||'', venue:o.venue||'', programme, faculty, included:true }));
+  }
+
+  async function runImportOnText(rawText){
+    if(!getAnthropicKey()){ toast('Save your Anthropic API key first'); return; }
+    const programme = card.querySelector('#aiProg').value.trim() || state.aiImportProgramme || 'Unspecified';
+    const faculty = card.querySelector('#aiFac').value.trim() || state.aiImportFaculty || '';
+    state.aiImportProgramme = programme; state.aiImportFaculty = faculty;
+    if(!rawText || rawText.trim().length<10){ toast('Nothing to parse'); return; }
+    let newEntries=[];
+    try{
+      if(state.aiImportKind==='modules'){
+        const daySegs = splitModuleTextByDay(rawText);
+        let chunkList=[];
+        daySegs.forEach(seg=>{ chunkByChars(seg.text, 1200).forEach(c=>chunkList.push({day:seg.day, text:c})); });
+        for(let i=0;i<chunkList.length;i++){
+          state.aiStatus = `Parsing chunk ${i+1} of ${chunkList.length}…`; refreshStatus();
+          const found = await parseModulesChunk(chunkList[i].text, chunkList[i].day, programme, faculty);
+          newEntries = newEntries.concat(found);
+        }
+      } else {
+        const chunks = chunkByChars(rawText, 1600);
+        for(let i=0;i<chunks.length;i++){
+          state.aiStatus = `Parsing chunk ${i+1} of ${chunks.length}…`; refreshStatus();
+          const found = await parseExamsChunk(chunks[i], programme, faculty);
+          newEntries = newEntries.concat(found);
+        }
+      }
+      state.aiPending = state.aiPending.concat(newEntries);
+      state.aiStatus = `Done — ${newEntries.length} entries proposed. Review below.`;
+    }catch(err){
+      console.error(err);
+      state.aiStatus = 'Something went wrong calling the AI: ' + err.message;
+    }
+    render();
+  }
+
+  setTimeout(()=>{
+    card.querySelector('#saveKeyBtn').onclick = ()=>{
+      const v = card.querySelector('#anthKey').value.trim();
+      if(v && !v.includes('•')){ localStorage.setItem('uneswa_admin_anthropic_key', v); toast('Key saved to this browser'); }
+    };
+    card.querySelectorAll('input[name=aikind]').forEach(r=>{ r.onchange = e=>{ state.aiImportKind=e.target.value; render(); }; });
+    card.querySelector('#aiProg').oninput = e=>{ state.aiImportProgramme=e.target.value; };
+    card.querySelector('#aiFac').oninput = e=>{ state.aiImportFaculty=e.target.value; };
+    card.querySelector('#aiPdfInput').onchange = async (e)=>{
+      const file = e.target.files[0]; if(!file) return;
+      state.aiStatus='Reading PDF…'; refreshStatus();
+      try{ const pages = await extractPdfPages(file); state.aiPages = pages.map((t,i)=>({index:i+1,text:t})); state.aiStatus = pages.length+' page(s) extracted.'; }
+      catch(err){ console.error(err); state.aiStatus='Could not read that PDF.'; }
+      render();
+    };
+    card.querySelector('#aiParsePasteBtn').onclick = ()=>runImportOnText(card.querySelector('#aiPasteArea').value);
+    const pw = card.querySelector('#aiPagesWrap');
+    if(state.aiPages.length){
+      pw.innerHTML = state.aiPages.map(p=>`<div class="pagecard">
+        <div class="ptop"><b>Page ${p.index}</b><button class="btn small terracotta" data-page="${p.index}">Parse this page with AI</button></div>
+        <div class="pagepreview">${esc(p.text.slice(0,300))}…</div></div>`).join('');
+      pw.querySelectorAll('[data-page]').forEach(b=>{ b.onclick=()=>{ const p=state.aiPages.find(x=>x.index===Number(b.dataset.page)); if(p) runImportOnText(p.text); }; });
+    }
+    refreshStatus();
+  },0);
+  return card;
+}
+
+/* ---------------- Students directory ---------------- */
+async function loadStudentsList(){ const { data } = await sb.from('students').select('*').order('updated_at',{ascending:false}); state.students = data || []; }
+
+function renderAdminStudents(){
+  const card=document.createElement('div'); card.className='card';
+  card.innerHTML = `<h2><span class="htitle">Registered students</span> <span class="pill">${state.students.length}</span></h2>
+    <div class="field"><label>Search by name or student number</label><input id="stuSearch" value="${esc(state.studentSearch)}"></div>
+    <div class="tablewrap"><table class="admintbl"><thead><tr>
+      <th>ID</th><th>Name</th><th>Course</th><th>Modules</th><th>Updated</th><th></th>
+    </tr></thead><tbody id="stuRows"></tbody></table></div>
+    <div id="stuEditWrap" style="margin-top:16px;"></div>`;
+
+  function matches(s,q){ if(!q) return true; q=q.toLowerCase(); return (s.id||'').toLowerCase().includes(q) || (s.name||'').toLowerCase().includes(q); }
+  function refresh(){
+    const rows = state.students.filter(s=>matches(s,state.studentSearch));
+    card.querySelector('#stuRows').innerHTML = rows.map(s=>`<tr>
+      <td>${esc(s.id)}</td><td>${esc(s.name||'—')}</td><td>${esc(progName(s.programme_id))}</td>
+      <td>${(s.module_ids||[]).length}</td><td>${s.updated_at?new Date(s.updated_at).toLocaleDateString():''}</td>
+      <td class="row"><button class="btn small secondary" data-edit="${esc(s.id)}">Edit</button>
+      <button class="btn small danger" data-del="${esc(s.id)}">Delete</button></td></tr>`).join('')
+      || `<tr><td colspan="6" class="muted" style="padding:14px;">No students match.</td></tr>`;
+    card.querySelectorAll('[data-edit]').forEach(b=>{ b.onclick=()=>{ state.editingStudentId=b.getAttribute('data-edit'); renderEditPanel(); }; });
+    card.querySelectorAll('[data-del]').forEach(b=>{
+      b.onclick = async ()=>{
+        if(!confirm('Delete this student record?')) return;
+        await sb.from('students').delete().eq('id', b.getAttribute('data-del'));
+        await loadStudentsList(); if(state.editingStudentId===b.getAttribute('data-del')) state.editingStudentId=null;
+        refresh(); renderEditPanel();
+      };
+    });
+  }
+  function renderEditPanel(){
+    const w = card.querySelector('#stuEditWrap');
+    const s = state.students.find(x=>x.id===state.editingStudentId);
+    if(!s){ w.innerHTML=''; return; }
+    w.innerHTML = `<h2><span class="htitle">Editing ${esc(s.name||s.id)}</span> <button class="btn small secondary" id="closeEditBtn">Close</button></h2>
+      <div class="row">
+        <div class="field" style="flex:1;"><label>Name</label><input id="editName" value="${esc(s.name)}"></div>
+      </div>
+      <div class="field"><label>Search modules to add/drop on this student's behalf</label><input id="editModSearch"></div>
+      <div class="modlist" id="editModList"></div>`;
+    function refreshEditList(q){
+      const el = document.getElementById('editModList'); q=(q||'').toLowerCase();
+      const mods = state.modules.filter(m=>!q || m.code.toLowerCase().includes(q));
+      const byProg={}; mods.forEach(m=>{ (byProg[m.programme_id]=byProg[m.programme_id]||[]).push(m); });
+      let html='';
+      Object.keys(byProg).forEach(pid=>{
+        html += `<div class="muted" style="padding:8px 2px 2px;font-weight:600;">${esc(progName(pid))}</div>`;
+        byProg[pid].sort((a,b)=>a.code.localeCompare(b.code)).forEach(m=>{
+          const checked=(s.module_ids||[]).includes(m.id);
+          html += `<label class="modrow"><input type="checkbox" data-id="${m.id}" ${checked?'checked':''}>
+            <div><div class="code">${esc(m.code)}</div><div class="meta">${esc(m.day)} · ${esc(m.start_time)}–${esc(m.end_time||'')} · ${esc(m.venue||'TBC')}</div></div></label>`;
+        });
+      });
+      el.innerHTML = html || `<div class="empty-state">No modules loaded.</div>`;
+      el.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+        cb.onchange = async (e)=>{
+          const id=e.target.getAttribute('data-id');
+          s.module_ids = s.module_ids || [];
+          if(e.target.checked) s.module_ids.push(id); else s.module_ids = s.module_ids.filter(x=>x!==id);
+          s.updated_at = new Date().toISOString(); s.semester_version = state.meta.semester_version;
+          await sb.from('students').update({module_ids:s.module_ids, updated_at:s.updated_at, semester_version:s.semester_version}).eq('id', s.id);
+          refresh();
+        };
+      });
+    }
+    refreshEditList();
+    document.getElementById('editModSearch').oninput = e=>refreshEditList(e.target.value);
+    document.getElementById('editName').onchange = async e=>{ s.name=e.target.value; await sb.from('students').update({name:s.name}).eq('id', s.id); refresh(); };
+    document.getElementById('closeEditBtn').onclick = ()=>{ state.editingStudentId=null; renderEditPanel(); };
+  }
+  refresh(); renderEditPanel();
+  setTimeout(()=>{ card.querySelector('#stuSearch').oninput = e=>{ state.studentSearch=e.target.value; refresh(); }; },0);
+  return card;
+}
+
+/* ---------------- Settings ---------------- */
+function renderAdminSettings(){
+  const card=document.createElement('div'); card.className='card';
+  card.innerHTML = `<h2><span class="htitle">Timetable settings</span></h2>
+    <div class="field"><label>Semester / version label</label>
+      <input id="semInput" value="${esc(state.meta.semester)}" placeholder="e.g. Semester 1, 2026/2027"></div>
+    <button class="btn secondary" id="saveSemBtn">Update label (no reset)</button>
+
+    <div class="divider"></div>
+    <h2><span class="htitle">Start a new semester</span></h2>
+    <div class="warnbox">This clears every student's module selection so they choose again from scratch. Past choices are kept in their history.</div>
+    <div class="field"><label>New semester label</label><input id="newSemInput" placeholder="e.g. Semester 2, 2026/2027"></div>
+    <label class="row" style="font-size:13px;margin-bottom:10px;"><input type="checkbox" id="alsoClearTimetable"> Also clear the current class &amp; exam timetable</label>
+    <button class="btn danger" id="startSemBtn">Start new semester &amp; reset student selections</button>
+
+    <div class="divider"></div>
+    <div class="infobox">This database supports up to about 5,000 records in total across students, modules and exams combined. If UNESWA outgrows that, the database needs to be upgraded — ask and I can help plan it.</div>`;
+  setTimeout(()=>{
+    card.querySelector('#saveSemBtn').onclick = async ()=>{
+      await sb.from('settings').update({semester: card.querySelector('#semInput').value||'Not set', updated_at:new Date().toISOString()}).eq('id',1);
+      toast('Label updated');
+    };
+    card.querySelector('#startSemBtn').onclick = async ()=>{
+      const label = card.querySelector('#newSemInput').value.trim();
+      if(!label){ toast('Enter a semester label first'); return; }
+      if(!confirm("This resets every registered student's module selection. Continue?")) return;
+      await sb.from('settings').update({ semester:label, semester_version:(state.meta.semester_version||1)+1, updated_at:new Date().toISOString() }).eq('id',1);
+      if(card.querySelector('#alsoClearTimetable').checked){
+        await sb.from('modules').delete().neq('id','00000000-0000-0000-0000-000000000000');
+        await sb.from('exams').delete().neq('id','00000000-0000-0000-0000-000000000000');
+      }
+      toast('New semester started');
+    };
+  },0);
+  return card;
+}
+
+/* ================= INIT ================= */
+(async function init(){
+  if(!sb){ render(); return; }
+  await loadAll();
+  subscribeRealtime();
+  const { data: sess } = await sb.auth.getSession();
+  if(sess && sess.session){ state.isAdmin = true; state.adminSession = sess.session; }
+  const savedNotif = localStorage.getItem('uneswa_notif');
+  if(savedNotif) state.notif = JSON.parse(savedNotif);
+  const lastId = localStorage.getItem('uneswa_last_student');
+  if(lastId){
+    const student = await fetchStudent(lastId);
+    if(student){
+      state.currentStudentId = lastId; state.currentStudent = student;
+      const wasReset = checkSemesterReset(student);
+      if(wasReset){ await saveStudent(student); state.resetNotice = true; }
+    }
+  }
+  render();
+})();
+</script>
+</body>
+</html>
