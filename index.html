@@ -131,8 +131,8 @@
 /* ================= CONFIGURE ME =================
    Paste your Supabase project URL + anon public key here.
    Project Settings -> API in your Supabase dashboard. */
-const SUPABASE_URL = "https://scmedarqqmpuhgdksthl.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjbWVkYXJxcW1wdWhnZGtzdGhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NzE3NjcsImV4cCI6MjEwNTE0Nzc2N30.-htGOuSxOp_TI8NYfbwBtn2I0ixCZJWkpmpgBScUrts";
+const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";
+const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";
 /* ================================================== */
 
 const sb = (SUPABASE_URL.includes('YOUR-PROJECT')) ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -784,8 +784,44 @@ async function callOllama(promptText){
   }
   return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
 }
+function getGeminiConfig(){
+  return {
+    apiKey: localStorage.getItem('uneswa_gemini_api_key') || '',
+    model: localStorage.getItem('uneswa_gemini_model') || 'gemini-2.5-flash'
+  };
+}
+async function callGemini(promptText){
+  const { apiKey, model } = getGeminiConfig();
+  if(!apiKey) throw new Error('No Gemini API key saved — paste it above and click "Save settings" first.');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+  let res;
+  try{
+    res = await fetch(url, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'x-goog-api-key': apiKey },
+      body: JSON.stringify({ contents:[{ parts:[{ text: promptText }] }] })
+    });
+  }catch(networkErr){
+    throw new Error('Could not reach the Gemini API from this browser (network or CORS issue). Check your connection and try again.');
+  }
+  let data;
+  try{ data = await res.json(); }catch(e){ throw new Error('Gemini API returned an unreadable response (HTTP '+res.status+').'); }
+  if(!res.ok || data.error){
+    const msg = (data.error && data.error.message) || ('HTTP '+res.status);
+    if(res.status===400 && /API key/i.test(msg)) throw new Error('Invalid API key — double-check it at aistudio.google.com/apikey. (' + msg + ')');
+    if(res.status===404) throw new Error('Model "'+model+'" not found — try "gemini-2.5-flash" or check current model names at ai.google.dev. (' + msg + ')');
+    if(res.status===429) throw new Error('Rate limit or free-tier quota hit — wait a bit and try again, or fewer chunks at once. (' + msg + ')');
+    throw new Error(msg);
+  }
+  const cand = data.candidates && data.candidates[0];
+  const text = cand && cand.content && cand.content.parts ? cand.content.parts.map(p=>p.text||'').join('') : '';
+  return text;
+}
 async function callAI(promptText){
-  return getAiProvider()==='ollama' ? callOllama(promptText) : callClaudeBYOK(promptText);
+  const p = getAiProvider();
+  if(p==='ollama') return callOllama(promptText);
+  if(p==='gemini') return callGemini(promptText);
+  return callClaudeBYOK(promptText);
 }
 function parseJsonLoose(text){
   const cleaned = (text||'').replace(/```json|```/g,'').trim();
@@ -838,12 +874,14 @@ function renderAiImport(){
   const hasKey = !!getAnthropicKey();
   const provider = getAiProvider();
   const ollamaCfg = getOllamaConfig();
+  const geminiCfg = getGeminiConfig();
   card.innerHTML = `<h2><span class="htitle">AI Import</span></h2>
     <div class="infobox">Upload a timetable PDF (or paste text). The AI reads it and proposes structured entries — nothing is published until you review and confirm them.</div>
 
     <div class="field"><label>AI provider</label>
       <select id="aiProviderSel">
         <option value="anthropic" ${provider==='anthropic'?'selected':''}>Anthropic (Claude) — paid API key</option>
+        <option value="gemini" ${provider==='gemini'?'selected':''}>Google Gemini — free tier</option>
         <option value="ollama" ${provider==='ollama'?'selected':''}>Ollama — free (cloud key or local, no cost)</option>
       </select></div>
 
@@ -982,6 +1020,14 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
       w.innerHTML = `<div class="field"><label>Your Anthropic API key</label>
         <input id="anthKey" type="password" placeholder="sk-ant-..." value="${hasKey?'••••••••••••••••':''}">
         <div class="muted" style="margin-top:4px;">Stored only in your browser. Get one at console.anthropic.com — each import uses a small amount of paid API credit on your account.</div></div>`;
+    } else if(p==='gemini'){
+      w.innerHTML = `<div class="row">
+          <div class="field" style="flex:1;"><label>Your Gemini API key</label>
+            <input id="gemKey" type="password" placeholder="AIza..." value="${geminiCfg.apiKey?'••••••••••••••••':''}"></div>
+          <div class="field" style="flex:1;"><label>Model name</label>
+            <input id="gemModel" value="${esc(geminiCfg.model)}" placeholder="gemini-2.5-flash"></div>
+        </div>
+        <div class="muted" style="margin-top:2px;">Free at aistudio.google.com/apikey — Gemini's free tier has generous daily limits for a task like this. If you hit "rate limit" errors, just wait a minute and retry.</div>`;
     } else {
       w.innerHTML = `<div class="row">
           <div class="field" style="flex:1;"><label>Ollama base URL</label>
@@ -1003,6 +1049,11 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
       if(p==='anthropic'){
         const v = card.querySelector('#anthKey').value.trim();
         if(v && !v.includes('•')){ localStorage.setItem('uneswa_admin_anthropic_key', v); }
+      } else if(p==='gemini'){
+        const key = card.querySelector('#gemKey').value.trim();
+        const model = card.querySelector('#gemModel').value.trim();
+        if(key && !key.includes('•')) localStorage.setItem('uneswa_gemini_api_key', key);
+        if(model) localStorage.setItem('uneswa_gemini_model', model);
       } else {
         const base = card.querySelector('#ollBase').value.trim();
         const model = card.querySelector('#ollModel').value.trim();
