@@ -817,10 +817,46 @@ async function callGemini(promptText){
   const text = cand && cand.content && cand.content.parts ? cand.content.parts.map(p=>p.text||'').join('') : '';
   return text;
 }
+function getOpenRouterConfig(){
+  return {
+    apiKey: localStorage.getItem('uneswa_openrouter_api_key') || '',
+    model: localStorage.getItem('uneswa_openrouter_model') || 'openrouter/free'
+  };
+}
+async function callOpenRouter(promptText){
+  const { apiKey, model } = getOpenRouterConfig();
+  if(!apiKey) throw new Error('No OpenRouter API key saved — paste it above and click "Save settings" first.');
+  let res;
+  try{
+    res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+apiKey,
+        'HTTP-Referer': location.origin,
+        'X-Title': 'UNESWA Timetable'
+      },
+      body: JSON.stringify({ model, messages:[{role:'user', content: promptText}] })
+    });
+  }catch(networkErr){
+    throw new Error('Could not reach OpenRouter from this browser (network issue). Check your connection and try again.');
+  }
+  let data;
+  try{ data = await res.json(); }catch(e){ throw new Error('OpenRouter returned an unreadable response (HTTP '+res.status+').'); }
+  if(!res.ok || data.error){
+    const msg = (data.error && (data.error.message||data.error)) || ('HTTP '+res.status);
+    if(res.status===401) throw new Error('Authentication failed — check your OpenRouter API key. (' + msg + ')');
+    if(res.status===402) throw new Error('That model needs credits — switch the model to "openrouter/free" or add credit at openrouter.ai. (' + msg + ')');
+    if(res.status===429) throw new Error('Rate limit hit on OpenRouter — wait a bit and try again. (' + msg + ')');
+    throw new Error(msg);
+  }
+  return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
+}
 async function callAI(promptText){
   const p = getAiProvider();
   if(p==='ollama') return callOllama(promptText);
   if(p==='gemini') return callGemini(promptText);
+  if(p==='openrouter') return callOpenRouter(promptText);
   return callClaudeBYOK(promptText);
 }
 function parseJsonLoose(text){
@@ -875,6 +911,7 @@ function renderAiImport(){
   const provider = getAiProvider();
   const ollamaCfg = getOllamaConfig();
   const geminiCfg = getGeminiConfig();
+  const openrouterCfg = getOpenRouterConfig();
   card.innerHTML = `<h2><span class="htitle">AI Import</span></h2>
     <div class="infobox">Upload a timetable PDF (or paste text). The AI reads it and proposes structured entries — nothing is published until you review and confirm them.</div>
 
@@ -882,6 +919,7 @@ function renderAiImport(){
       <select id="aiProviderSel">
         <option value="anthropic" ${provider==='anthropic'?'selected':''}>Anthropic (Claude) — paid API key</option>
         <option value="gemini" ${provider==='gemini'?'selected':''}>Google Gemini — free tier</option>
+        <option value="openrouter" ${provider==='openrouter'?'selected':''}>OpenRouter — free router model</option>
         <option value="ollama" ${provider==='ollama'?'selected':''}>Ollama — free (cloud key or local, no cost)</option>
       </select></div>
 
@@ -1028,6 +1066,14 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
             <input id="gemModel" value="${esc(geminiCfg.model)}" placeholder="gemini-2.5-flash"></div>
         </div>
         <div class="muted" style="margin-top:2px;">Free at aistudio.google.com/apikey — Gemini's free tier has generous daily limits for a task like this. If you hit "rate limit" errors, just wait a minute and retry.</div>`;
+    } else if(p==='openrouter'){
+      w.innerHTML = `<div class="row">
+          <div class="field" style="flex:1;"><label>Your OpenRouter API key</label>
+            <input id="orKey" type="password" placeholder="sk-or-..." value="${openrouterCfg.apiKey?'••••••••••••••••':''}"></div>
+          <div class="field" style="flex:1;"><label>Model</label>
+            <input id="orModel" value="${esc(openrouterCfg.model)}" placeholder="openrouter/free"></div>
+        </div>
+        <div class="muted" style="margin-top:2px;">Free key at openrouter.ai/keys. Leave the model as <code>openrouter/free</code> to let OpenRouter auto-pick a free model — or browse openrouter.ai/models and pick a specific one ending in <code>:free</code>.</div>`;
     } else {
       w.innerHTML = `<div class="row">
           <div class="field" style="flex:1;"><label>Ollama base URL</label>
@@ -1054,6 +1100,11 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
         const model = card.querySelector('#gemModel').value.trim();
         if(key && !key.includes('•')) localStorage.setItem('uneswa_gemini_api_key', key);
         if(model) localStorage.setItem('uneswa_gemini_model', model);
+      } else if(p==='openrouter'){
+        const key = card.querySelector('#orKey').value.trim();
+        const model = card.querySelector('#orModel').value.trim();
+        if(key && !key.includes('•')) localStorage.setItem('uneswa_openrouter_api_key', key);
+        if(model) localStorage.setItem('uneswa_openrouter_model', model);
       } else {
         const base = card.querySelector('#ollBase').value.trim();
         const model = card.querySelector('#ollModel').value.trim();
