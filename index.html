@@ -799,7 +799,7 @@ async function callGemini(promptText){
     res = await fetch(url, {
       method:'POST',
       headers:{ 'Content-Type':'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({ contents:[{ parts:[{ text: promptText }] }] })
+      body: JSON.stringify({ contents:[{ parts:[{ text: promptText }] }], generationConfig:{ maxOutputTokens: 1500 } })
     });
   }catch(networkErr){
     throw new Error('Could not reach the Gemini API from this browser (network or CORS issue). Check your connection and try again.');
@@ -836,7 +836,7 @@ async function callOpenRouter(promptText){
         'HTTP-Referer': location.origin,
         'X-Title': 'UNESWA Timetable'
       },
-      body: JSON.stringify({ model, messages:[{role:'user', content: promptText}] })
+      body: JSON.stringify({ model, messages:[{role:'user', content: promptText}], max_tokens: 1500 })
     });
   }catch(networkErr){
     throw new Error('Could not reach OpenRouter from this browser (network issue). Check your connection and try again.');
@@ -938,7 +938,7 @@ function renderAiImport(){
     <div id="aiPagesWrap"></div>
     <div class="field"><label>...or paste raw text directly</label><textarea id="aiPasteArea" placeholder="Paste a page or section of the released timetable here"></textarea></div>
     <div class="row"><button class="btn terracotta" id="aiParsePasteBtn">Parse pasted text with AI</button></div>
-    <div class="muted" id="aiStatusLine" style="margin-top:8px;"></div>
+    <div id="aiStatusLine" class="muted" style="margin-top:10px;font-weight:600;"></div>
     <div id="aiPendingWrap" style="margin-top:16px;"></div>`;
 
   function refreshStatus(){ card.querySelector('#aiStatusLine').textContent = state.aiStatus; }
@@ -1016,38 +1016,45 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
   }
 
   async function runImportOnText(rawText){
-    if(!getAnthropicKey()){ toast('Save your Anthropic API key first'); return; }
     const programme = card.querySelector('#aiProg').value.trim() || state.aiImportProgramme || 'Unspecified';
     const faculty = card.querySelector('#aiFac').value.trim() || state.aiImportFaculty || '';
     state.aiImportProgramme = programme; state.aiImportFaculty = faculty;
     if(!rawText || rawText.trim().length<10){ toast('Nothing to parse'); return; }
+    if(state.aiBusy){ toast('Already parsing — please wait for it to finish.'); return; }
+    state.aiBusy = true;
+    card.querySelectorAll('[data-page], #aiParsePasteBtn').forEach(b=>b.disabled=true);
+    const startedAt = Date.now();
     let newEntries=[];
     try{
       if(state.aiImportKind==='modules'){
         const daySegs = splitModuleTextByDay(rawText);
         let chunkList=[];
-        daySegs.forEach(seg=>{ chunkByChars(seg.text, 1200).forEach(c=>chunkList.push({day:seg.day, text:c})); });
+        daySegs.forEach(seg=>{ chunkByChars(seg.text, 2200).forEach(c=>chunkList.push({day:seg.day, text:c})); });
         for(let i=0;i<chunkList.length;i++){
-          state.aiStatus = `Parsing chunk ${i+1} of ${chunkList.length}…`; refreshStatus();
+          const secs = Math.round((Date.now()-startedAt)/1000);
+          state.aiStatus = `Parsing chunk ${i+1} of ${chunkList.length}… (${secs}s elapsed)`; refreshStatus();
           const found = await parseModulesChunk(chunkList[i].text, chunkList[i].day, programme, faculty);
           newEntries = newEntries.concat(found);
         }
       } else {
-        const chunks = chunkByChars(rawText, 1600);
+        const chunks = chunkByChars(rawText, 2400);
         for(let i=0;i<chunks.length;i++){
-          state.aiStatus = `Parsing chunk ${i+1} of ${chunks.length}…`; refreshStatus();
+          const secs = Math.round((Date.now()-startedAt)/1000);
+          state.aiStatus = `Parsing chunk ${i+1} of ${chunks.length}… (${secs}s elapsed)`; refreshStatus();
           const found = await parseExamsChunk(chunks[i], programme, faculty);
           newEntries = newEntries.concat(found);
         }
       }
       state.aiPending = state.aiPending.concat(newEntries);
-      state.aiStatus = `Done — ${newEntries.length} entries proposed. Review below.`;
+      const totalSecs = Math.round((Date.now()-startedAt)/1000);
+      state.aiStatus = `Done in ${totalSecs}s — ${newEntries.length} entries proposed. Review below.`;
       toast(state.aiStatus);
     }catch(err){
       console.error(err);
       state.aiStatus = 'AI import failed: ' + err.message;
       toast(state.aiStatus);
     }
+    state.aiBusy = false;
     render();
   }
 
