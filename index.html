@@ -159,7 +159,7 @@ const state = {
   pickFaculty:'', pickProgramme:'',
   notif:{enabled:false, minutesBefore:15},
   tab:'student', adminTab:'faculties',
-  aiImportFaculty:'', aiImportProgramme:'', aiImportKind:'modules', aiPages:[], aiPending:[], aiStatus:'', aiDebugRaw:[],
+  aiImportFaculty:'', aiImportProgramme:'', aiImportKind:'modules', aiPages:[], aiPending:[], aiStatus:'', aiDebugRaw:[], aiPasteText:'',
   studentSearch:'', editingStudentId:null, students:[]
 };
 
@@ -181,18 +181,32 @@ const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";</pre>
 }
 
 /* ---------------- data loading ---------------- */
+async function fetchAllRows(table, orderCol, ascending){
+  let all = [], from = 0;
+  const pageSize = 1000;
+  while(true){
+    let q = sb.from(table).select('*').range(from, from+pageSize-1);
+    if(orderCol) q = q.order(orderCol, { ascending: ascending!==false });
+    const { data, error } = await q;
+    if(error){ console.error('fetchAllRows', table, error); break; }
+    all = all.concat(data);
+    if(!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
 async function loadAll(){
   const [f,p,m,e,s] = await Promise.all([
     sb.from('faculties').select('*').order('name'),
     sb.from('programmes').select('*').order('name'),
-    sb.from('modules').select('*').order('code'),
-    sb.from('exams').select('*').order('exam_date'),
+    fetchAllRows('modules','code'),
+    fetchAllRows('exams','exam_date'),
     sb.from('settings').select('*').eq('id',1).single()
   ]);
   state.faculties = f.data || [];
   state.programmes = p.data || [];
-  state.modules = m.data || [];
-  state.exams = e.data || [];
+  state.modules = m || [];
+  state.exams = e || [];
   if(s.data) state.meta = s.data;
 }
 function subscribeRealtime(){
@@ -400,10 +414,19 @@ function renderStudent(){
   return wrap;
 }
 
-async function toggleModule(student, moduleId, checked){
+function groupModulesByCode(mods){
+  const map = {};
+  mods.forEach(m=>{ (map[m.code] = map[m.code]||[]).push(m); });
+  return map;
+}
+async function toggleModuleGroup(student, ids, checked){
   student.module_ids = student.module_ids || [];
-  if(checked){ if(!student.module_ids.includes(moduleId)) student.module_ids.push(moduleId); }
-  else student.module_ids = student.module_ids.filter(x=>x!==moduleId);
+  if(checked){
+    ids.forEach(id=>{ if(!student.module_ids.includes(id)) student.module_ids.push(id); });
+  } else {
+    const idSet = new Set(ids);
+    student.module_ids = student.module_ids.filter(x=>!idSet.has(x));
+  }
   student.semester_version = state.meta.semester_version;
   student.updated_at = new Date().toISOString();
   await saveStudent(student);
@@ -414,27 +437,43 @@ function renderProgModList(student){
   const el = document.getElementById('modList');
   if(!el) return;
   if(!state.pickProgramme){ el.innerHTML = `<div class="empty-state">Pick a faculty and course above to see its modules.</div>`; return; }
-  const mods = state.modules.filter(m=>m.programme_id===state.pickProgramme).sort((a,b)=>a.code.localeCompare(b.code));
+  const mods = state.modules.filter(m=>m.programme_id===state.pickProgramme);
   if(mods.length===0){ el.innerHTML = `<div class="empty-state">No modules loaded for this course yet.</div>`; return; }
-  el.innerHTML = mods.map(m=>{
-    const checked = (student.module_ids||[]).includes(m.id);
-    return `<label class="modrow"><input type="checkbox" data-id="${m.id}" ${checked?'checked':''}>
-      <div><div class="code">${esc(m.code)}</div><div class="meta">${esc(m.day)} · ${esc(m.start_time)}–${esc(m.end_time||'')} · ${esc(m.venue||'TBC')}</div></div></label>`;
+  const groups = groupModulesByCode(mods);
+  const codes = Object.keys(groups).sort();
+  el.innerHTML = codes.map(code=>{
+    const sessions = groups[code].slice().sort((a,b)=> DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || a.start_time.localeCompare(b.start_time));
+    const ids = sessions.map(s=>s.id);
+    const checked = ids.some(id=>(student.module_ids||[]).includes(id));
+    const summary = sessions.map(s=>`${s.day.slice(0,3)} ${s.start_time}–${s.end_time||''} · ${s.venue||'TBC'}`).join(' · ');
+    return `<label class="modrow"><input type="checkbox" data-ids="${ids.join(',')}" ${checked?'checked':''}>
+      <div><div class="code">${esc(code)} <span class="muted">(${sessions.length} session${sessions.length>1?'s':''}/wk)</span></div>
+      <div class="meta">${esc(summary)}</div></div></label>`;
   }).join('');
-  el.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.onchange = e=>toggleModule(student, e.target.getAttribute('data-id'), e.target.checked); });
+  el.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.onchange = e=>toggleModuleGroup(student, e.target.getAttribute('data-ids').split(','), e.target.checked);
+  });
 }
 function renderSearchList(student, q){
   const el = document.getElementById('searchList');
   q=(q||'').trim().toLowerCase();
   if(!q){ el.innerHTML=''; return; }
-  const mods = state.modules.filter(m=>m.code.toLowerCase().includes(q)).slice(0,40);
-  el.innerHTML = mods.map(m=>{
-    const checked = (student.module_ids||[]).includes(m.id);
-    return `<label class="modrow"><input type="checkbox" data-id="${m.id}" ${checked?'checked':''}>
-      <div><div class="code">${esc(m.code)} <span class="muted">· ${esc(progName(m.programme_id))}</span></div>
-      <div class="meta">${esc(m.day)} · ${esc(m.start_time)}–${esc(m.end_time||'')} · ${esc(m.venue||'TBC')}</div></div></label>`;
+  const mods = state.modules.filter(m=>m.code.toLowerCase().includes(q));
+  const groups = groupModulesByCode(mods);
+  const codes = Object.keys(groups).sort().slice(0,40);
+  el.innerHTML = codes.map(code=>{
+    const sessions = groups[code].slice().sort((a,b)=> DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || a.start_time.localeCompare(b.start_time));
+    const ids = sessions.map(s=>s.id);
+    const checked = ids.some(id=>(student.module_ids||[]).includes(id));
+    const progNames = [...new Set(sessions.map(s=>progName(s.programme_id)))].join(', ');
+    const summary = sessions.map(s=>`${s.day.slice(0,3)} ${s.start_time}–${s.end_time||''} · ${s.venue||'TBC'}`).join(' · ');
+    return `<label class="modrow"><input type="checkbox" data-ids="${ids.join(',')}" ${checked?'checked':''}>
+      <div><div class="code">${esc(code)} <span class="muted">· ${esc(progNames)}</span></div>
+      <div class="meta">${esc(summary)}</div></div></label>`;
   }).join('') || `<div class="empty-state">No matches.</div>`;
-  el.querySelectorAll('input[type=checkbox]').forEach(cb=>{ cb.onchange = e=>toggleModule(student, e.target.getAttribute('data-id'), e.target.checked); });
+  el.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    cb.onchange = e=>toggleModuleGroup(student, e.target.getAttribute('data-ids').split(','), e.target.checked);
+  });
 }
 
 function renderMyCourses(student){
@@ -988,7 +1027,7 @@ function renderAiImport(){
     </div>
     <div class="field"><label>Upload PDF (optional)</label><input type="file" id="aiPdfInput" accept="application/pdf"></div>
     <div id="aiPageSelectWrap"></div>
-    <div class="field"><label>Text to parse — auto-filled from the PDF page you pick above, or paste your own</label><textarea id="aiPasteArea" style="min-height:140px;" placeholder="Paste a page or section of the released timetable here"></textarea></div>
+    <div class="field"><label>Text to parse — auto-filled from the PDF page you pick above, or paste your own</label><textarea id="aiPasteArea" style="min-height:140px;" placeholder="Paste a page or section of the released timetable here">${esc(state.aiPasteText)}</textarea></div>
     <div class="row"><button class="btn terracotta" id="aiParseBtn">Parse with AI</button></div>
     <div id="aiStatusLine" class="muted" style="margin-top:10px;font-weight:600;"></div>
     <div id="aiDebugWrap" style="margin-top:10px;"></div>
@@ -1204,7 +1243,7 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
         const pages = await extractPdfPages(file);
         state.aiPages = pages.map((t,i)=>({index:i+1,text:t}));
         state.aiStatus = pages.length+' page(s) extracted — pick one below, or it defaults to page 1.';
-        if(state.aiPages.length){ card.querySelector('#aiPasteArea').value = state.aiPages[0].text; }
+        if(state.aiPages.length){ state.aiPasteText = state.aiPages[0].text; }
       }catch(err){ console.error(err); state.aiStatus='Could not read that PDF.'; }
       render();
     };
@@ -1214,9 +1253,10 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
         <select id="aiPageSel">${state.aiPages.map(p=>`<option value="${p.index}">Page ${p.index} — ${esc(p.text.slice(0,60))}…</option>`).join('')}</select></div>`;
       pw.querySelector('#aiPageSel').onchange = (e)=>{
         const p = state.aiPages.find(x=>x.index===Number(e.target.value));
-        if(p) card.querySelector('#aiPasteArea').value = p.text;
+        if(p){ state.aiPasteText = p.text; card.querySelector('#aiPasteArea').value = p.text; }
       };
     }
+    card.querySelector('#aiPasteArea').oninput = (e)=>{ state.aiPasteText = e.target.value; };
     card.querySelector('#aiParseBtn').onclick = ()=>runImportOnText(card.querySelector('#aiPasteArea').value);
     refreshStatus();
     renderDebugPanel();
@@ -1225,7 +1265,7 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
 }
 
 /* ---------------- Students directory ---------------- */
-async function loadStudentsList(){ const { data } = await sb.from('students').select('*').order('updated_at',{ascending:false}); state.students = data || []; }
+async function loadStudentsList(){ state.students = await fetchAllRows('students', 'updated_at', false); }
 
 function renderAdminStudents(){
   const card=document.createElement('div'); card.className='card';
@@ -1272,18 +1312,23 @@ function renderAdminStudents(){
       let html='';
       Object.keys(byProg).forEach(pid=>{
         html += `<div class="muted" style="padding:8px 2px 2px;font-weight:600;">${esc(progName(pid))}</div>`;
-        byProg[pid].sort((a,b)=>a.code.localeCompare(b.code)).forEach(m=>{
-          const checked=(s.module_ids||[]).includes(m.id);
-          html += `<label class="modrow"><input type="checkbox" data-id="${m.id}" ${checked?'checked':''}>
-            <div><div class="code">${esc(m.code)}</div><div class="meta">${esc(m.day)} · ${esc(m.start_time)}–${esc(m.end_time||'')} · ${esc(m.venue||'TBC')}</div></div></label>`;
+        const groups = groupModulesByCode(byProg[pid]);
+        Object.keys(groups).sort().forEach(code=>{
+          const sessions = groups[code].slice().sort((a,b)=> DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || a.start_time.localeCompare(b.start_time));
+          const ids = sessions.map(x=>x.id);
+          const checked = ids.some(id=>(s.module_ids||[]).includes(id));
+          const summary = sessions.map(x=>`${x.day.slice(0,3)} ${x.start_time}–${x.end_time||''} · ${x.venue||'TBC'}`).join(' · ');
+          html += `<label class="modrow"><input type="checkbox" data-ids="${ids.join(',')}" ${checked?'checked':''}>
+            <div><div class="code">${esc(code)}</div><div class="meta">${esc(summary)}</div></div></label>`;
         });
       });
       el.innerHTML = html || `<div class="empty-state">No modules loaded.</div>`;
       el.querySelectorAll('input[type=checkbox]').forEach(cb=>{
         cb.onchange = async (e)=>{
-          const id=e.target.getAttribute('data-id');
+          const ids = e.target.getAttribute('data-ids').split(',');
           s.module_ids = s.module_ids || [];
-          if(e.target.checked) s.module_ids.push(id); else s.module_ids = s.module_ids.filter(x=>x!==id);
+          if(e.target.checked) ids.forEach(id=>{ if(!s.module_ids.includes(id)) s.module_ids.push(id); });
+          else { const idSet=new Set(ids); s.module_ids = s.module_ids.filter(x=>!idSet.has(x)); }
           s.updated_at = new Date().toISOString(); s.semester_version = state.meta.semester_version;
           await sb.from('students').update({module_ids:s.module_ids, updated_at:s.updated_at, semester_version:s.semester_version}).eq('id', s.id);
           refresh();
