@@ -159,7 +159,7 @@ const state = {
   pickFaculty:'', pickProgramme:'',
   notif:{enabled:false, minutesBefore:15},
   tab:'student', adminTab:'faculties',
-  aiImportFaculty:'', aiImportProgramme:'', aiImportKind:'modules', aiPages:[], aiPending:[], aiStatus:'',
+  aiImportFaculty:'', aiImportProgramme:'', aiImportKind:'modules', aiPages:[], aiPending:[], aiStatus:'', aiDebugRaw:[],
   studentSearch:'', editingStudentId:null, students:[]
 };
 
@@ -677,21 +677,28 @@ function renderAdminEntries(kind){
   const list = isMod ? state.modules : state.exams;
   const card=document.createElement('div'); card.className='card';
   card.innerHTML = `<h2><span class="htitle">${isMod?'Class timetable':'Exam timetable'}</span> <span class="pill">${list.length} entries</span></h2>
-    <div class="field"><label>Bulk import (paste, one entry per line)</label>
-      <textarea id="bulkArea" placeholder="${isMod?'ACF411, Monday, 07:00, 07:50, G.005/G.006, Bachelor of Commerce':'ACF411, 2026-12-05, 09:00, 12:00, MPH, Bachelor of Commerce'}"></textarea>
-      <div class="muted" style="margin-top:4px;">Format: ${isMod?'code, day, start, end, venue, course name':'code, date (YYYY-MM-DD), start, end, venue, course name'}. Unknown course names are created automatically (with no faculty — assign one in Faculties &amp; Courses). Prefer AI Import for a whole released timetable.</div>
+    <div class="field"><label>Bulk import — paste as many lines as you like, one entry per line</label>
+      <textarea id="bulkArea" style="min-height:160px;" placeholder="${isMod?'ACF411, Monday, 07:00, 07:50, G.005/G.006, Bachelor of Commerce':'ACF411, 2026-12-05, 09:00, 12:00, MPH, Bachelor of Commerce'}"></textarea>
+      <div class="muted" style="margin-top:4px;">Format: ${isMod?'code, day, start, end, venue, course name':'code, date (YYYY-MM-DD), start, end, venue, course name'}. Unknown course names are created automatically (with no faculty — assign one in Faculties &amp; Courses). Works for a handful of lines or several thousand at once.</div>
     </div>
     <div class="row"><button class="btn terracotta" id="importBtn">Import lines</button></div>
+    <div class="muted" id="importStatus" style="margin-top:8px;font-weight:600;"></div>
     <div class="tablewrap" style="margin-top:16px;"><table class="admintbl"><thead><tr>
       <th>Code</th><th>Course</th><th>${isMod?'Day':'Date'}</th><th>Time</th><th>Venue</th><th></th></tr></thead>
       <tbody id="entryRows"></tbody></table></div>`;
 
   function refreshRows(){
     const tb = card.querySelector('#entryRows');
-    tb.innerHTML = list.map(e=>`<tr><td><b>${esc(e.code)}</b></td><td>${esc(progName(e.programme_id))}</td>
+    const shown = list.slice(0, 500);
+    tb.innerHTML = shown.map(e=>`<tr><td><b>${esc(e.code)}</b></td><td>${esc(progName(e.programme_id))}</td>
       <td>${isMod?esc(e.day):esc(e.exam_date||'')}</td><td>${esc(e.start_time||'')}${e.end_time?'–'+esc(e.end_time):''}</td>
       <td>${esc(e.venue||'')}</td><td><button class="btn small danger" data-del="${e.id}">Delete</button></td></tr>`).join('')
       || `<tr><td colspan="6" class="muted" style="padding:14px;">No entries yet.</td></tr>`;
+    if(list.length > 500){
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="6" class="muted" style="padding:10px;">…and ${list.length-500} more (showing first 500 only)</td>`;
+      tb.appendChild(tr);
+    }
     tb.querySelectorAll('[data-del]').forEach(b=>{
       b.onclick = async ()=>{ await sb.from(isMod?'modules':'exams').delete().eq('id', b.getAttribute('data-del')); toast('Deleted'); };
     });
@@ -699,21 +706,53 @@ function renderAdminEntries(kind){
   refreshRows();
 
   setTimeout(()=>{
-    card.querySelector('#importBtn').onclick = async ()=>{
+    const statusEl = card.querySelector('#importStatus');
+    const btn = card.querySelector('#importBtn');
+    btn.onclick = async ()=>{
       const raw = card.querySelector('#bulkArea').value.trim();
       if(!raw) return;
       const lines = raw.split('\n').map(l=>l.trim()).filter(Boolean);
-      let added=0;
+      const parsed = [];
+      let skipped = 0;
       for(const line of lines){
         const parts = line.split(',').map(s=>s.trim());
-        if(parts.length<6) continue;
-        const [code,a,start,end,venue,progNameStr]=parts;
-        const programme_id = await resolveProgrammeId(progNameStr, null);
-        const entry = isMod ? {code,day:a,start_time:start,end_time:end,venue,programme_id} : {code,exam_date:a,start_time:start,end_time:end,venue,programme_id};
-        const { error } = await sb.from(isMod?'modules':'exams').insert(entry);
-        if(!error) added++;
+        if(parts.length<6){ skipped++; continue; }
+        const [code,a,start,end,venue,progNameStr] = parts;
+        parsed.push({code, a, start, end, venue, prog: progNameStr});
       }
-      toast(added+' entries imported'); card.querySelector('#bulkArea').value='';
+      if(parsed.length===0){ toast('Nothing valid to import — check the line format'); return; }
+
+      btn.disabled = true;
+      try{
+        // Step 1: resolve every distinct course name ONCE (not per line)
+        const distinctProgs = [...new Set(parsed.map(p=>p.prog))];
+        statusEl.textContent = `Resolving ${distinctProgs.length} course name(s)…`;
+        const progIdMap = {};
+        for(const name of distinctProgs){ progIdMap[name] = await resolveProgrammeId(name, null); }
+
+        // Step 2: build all row objects, then insert in batches
+        const rows = parsed.map(p => isMod
+          ? { code:p.code, day:p.a, start_time:p.start, end_time:p.end, venue:p.venue, programme_id: progIdMap[p.prog] }
+          : { code:p.code, exam_date:p.a, start_time:p.start, end_time:p.end, venue:p.venue, programme_id: progIdMap[p.prog] }
+        );
+        const BATCH = 500;
+        let inserted = 0, failed = 0;
+        for(let i=0;i<rows.length;i+=BATCH){
+          const batch = rows.slice(i, i+BATCH);
+          statusEl.textContent = `Importing… ${Math.min(i+BATCH, rows.length)} of ${rows.length}`;
+          const { error, data } = await sb.from(isMod?'modules':'exams').insert(batch).select('id');
+          if(error){ console.error(error); failed += batch.length; }
+          else inserted += (data ? data.length : batch.length);
+        }
+        statusEl.textContent = `Done — ${inserted} imported${failed?`, ${failed} failed (see console)`:''}${skipped?`, ${skipped} lines skipped (wrong format)`:''}.`;
+        toast(statusEl.textContent);
+        if(!failed) card.querySelector('#bulkArea').value='';
+      }catch(err){
+        console.error(err);
+        statusEl.textContent = 'Import failed: ' + err.message;
+        toast(statusEl.textContent);
+      }
+      btn.disabled = false;
     };
   },0);
   return card;
@@ -860,10 +899,23 @@ async function callAI(promptText){
   return callClaudeBYOK(promptText);
 }
 function parseJsonLoose(text){
-  const cleaned = (text||'').replace(/```json|```/g,'').trim();
-  try{ return JSON.parse(cleaned); }catch(e){}
-  const m = cleaned.match(/\[[\s\S]*\]/);
-  if(m){ try{ return JSON.parse(m[0]); }catch(e2){} }
+  const cleaned = (text||'').replace(/```json|```/gi,'').trim();
+  const tryParse = (s)=>{ try{ return JSON.parse(s); }catch(e){ return undefined; } };
+  let r = tryParse(cleaned);
+  if(r !== undefined) return r;
+  // strip trailing commas before ] or }
+  const noTrailing = cleaned.replace(/,\s*([\]}])/g, '$1');
+  r = tryParse(noTrailing);
+  if(r !== undefined) return r;
+  // find the first [ ... last ] (balanced-ish) rather than a greedy single regex
+  const start = cleaned.indexOf('['); const end = cleaned.lastIndexOf(']');
+  if(start !== -1 && end !== -1 && end > start){
+    const slice = cleaned.slice(start, end+1);
+    r = tryParse(slice);
+    if(r !== undefined) return r;
+    r = tryParse(slice.replace(/,\s*([\]}])/g, '$1'));
+    if(r !== undefined) return r;
+  }
   return null;
 }
 function chunkByChars(text, maxChars){
@@ -934,14 +986,30 @@ function renderAiImport(){
       <div class="field" style="flex:1;"><label>Faculty</label><input id="aiFac" placeholder="e.g. Faculty of Commerce" value="${esc(state.aiImportFaculty)}"></div>
       <div class="field" style="flex:1;"><label>Course this import belongs to</label><input id="aiProg" placeholder="e.g. Bachelor of Commerce" value="${esc(state.aiImportProgramme)}"></div>
     </div>
-    <div class="field"><label>Upload PDF</label><input type="file" id="aiPdfInput" accept="application/pdf"></div>
-    <div id="aiPagesWrap"></div>
-    <div class="field"><label>...or paste raw text directly</label><textarea id="aiPasteArea" placeholder="Paste a page or section of the released timetable here"></textarea></div>
-    <div class="row"><button class="btn terracotta" id="aiParsePasteBtn">Parse pasted text with AI</button></div>
+    <div class="field"><label>Upload PDF (optional)</label><input type="file" id="aiPdfInput" accept="application/pdf"></div>
+    <div id="aiPageSelectWrap"></div>
+    <div class="field"><label>Text to parse — auto-filled from the PDF page you pick above, or paste your own</label><textarea id="aiPasteArea" style="min-height:140px;" placeholder="Paste a page or section of the released timetable here"></textarea></div>
+    <div class="row"><button class="btn terracotta" id="aiParseBtn">Parse with AI</button></div>
     <div id="aiStatusLine" class="muted" style="margin-top:10px;font-weight:600;"></div>
+    <div id="aiDebugWrap" style="margin-top:10px;"></div>
     <div id="aiPendingWrap" style="margin-top:16px;"></div>`;
 
   function refreshStatus(){ card.querySelector('#aiStatusLine').textContent = state.aiStatus; }
+
+  function renderDebugPanel(){
+    const w = card.querySelector('#aiDebugWrap');
+    if(!state.aiDebugRaw.length){ w.innerHTML=''; return; }
+    w.innerHTML = `<details class="warnbox" style="cursor:pointer;">
+      <summary style="font-weight:700;">Found 0 entries — click to see what the AI actually replied (for debugging)</summary>
+      ${state.aiDebugRaw.slice(0,3).map((d,i)=>`
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--terracotta);">
+          <div style="font-weight:600;">Attempt ${i+1} — text sent (first 200 chars):</div>
+          <pre style="white-space:pre-wrap;font-size:11px;background:#fff;padding:8px;border-radius:6px;">${esc(d.chunk)}</pre>
+          <div style="font-weight:600;margin-top:6px;">AI's raw response:</div>
+          <pre style="white-space:pre-wrap;font-size:11px;background:#fff;padding:8px;border-radius:6px;">${esc(d.response || '(empty response)')}</pre>
+        </div>`).join('')}
+      </details>`;
+  }
 
   function renderPendingTable(){
     const w = card.querySelector('#aiPendingWrap');
@@ -999,8 +1067,9 @@ ${chunkText}
 Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...", "start":"HH:MM", "end":"HH:MM", "venue":"..."}.
 Assign start/end times using the known columns in the order codes appear (first code(s) = 07:00-07:50, next column = 08:00-08:50, and so on). Make your best estimate if unsure — a human will review this before publishing. Skip anything unreadable.`;
     const text = await callAI(prompt);
-    const arr = parseJsonLoose(text) || [];
-    return arr.map(o=>({ code:o.code||'', day, start:o.start||'', end:o.end||'', venue:o.venue||'', programme, faculty, included:true }));
+    const arr = parseJsonLoose(text);
+    if(!arr || arr.length===0) state.aiDebugRaw.push({chunk: chunkText.slice(0,200), response: text});
+    return (arr||[]).map(o=>({ code:o.code||'', day, start:o.start||'', end:o.end||'', venue:o.venue||'', programme, faculty, included:true }));
   }
   async function parseExamsChunk(chunkText, programme, faculty){
     const prompt = `Extract an exam timetable from this raw text pulled out of a PDF or pasted by an admin.
@@ -1011,18 +1080,21 @@ ${chunkText}
 """
 Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...", "date":"YYYY-MM-DD", "start":"HH:MM", "end":"HH:MM", "venue":"..."}. Skip anything unreadable.`;
     const text = await callAI(prompt);
-    const arr = parseJsonLoose(text) || [];
-    return arr.map(o=>({ code:o.code||'', date:o.date||'', start:o.start||'', end:o.end||'', venue:o.venue||'', programme, faculty, included:true }));
+    const arr = parseJsonLoose(text);
+    if(!arr || arr.length===0) state.aiDebugRaw.push({chunk: chunkText.slice(0,200), response: text});
+    return (arr||[]).map(o=>({ code:o.code||'', date:o.date||'', start:o.start||'', end:o.end||'', venue:o.venue||'', programme, faculty, included:true }));
   }
 
   async function runImportOnText(rawText){
     const programme = card.querySelector('#aiProg').value.trim() || state.aiImportProgramme || 'Unspecified';
     const faculty = card.querySelector('#aiFac').value.trim() || state.aiImportFaculty || '';
     state.aiImportProgramme = programme; state.aiImportFaculty = faculty;
-    if(!rawText || rawText.trim().length<10){ toast('Nothing to parse'); return; }
+    if(!rawText || rawText.trim().length<10){ toast('Nothing to parse — paste text or pick a PDF page first'); return; }
     if(state.aiBusy){ toast('Already parsing — please wait for it to finish.'); return; }
     state.aiBusy = true;
-    card.querySelectorAll('[data-page], #aiParsePasteBtn').forEach(b=>b.disabled=true);
+    state.aiDebugRaw = [];
+    const btn = card.querySelector('#aiParseBtn');
+    if(btn) btn.disabled = true;
     const startedAt = Date.now();
     let newEntries=[];
     try{
@@ -1047,7 +1119,7 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
       }
       state.aiPending = state.aiPending.concat(newEntries);
       const totalSecs = Math.round((Date.now()-startedAt)/1000);
-      state.aiStatus = `Done in ${totalSecs}s — ${newEntries.length} entries proposed. Review below.`;
+      state.aiStatus = `Done in ${totalSecs}s — ${newEntries.length} entries proposed.` + (newEntries.length ? ' Review below.' : ' See debug details below.');
       toast(state.aiStatus);
     }catch(err){
       console.error(err);
@@ -1128,19 +1200,26 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
     card.querySelector('#aiPdfInput').onchange = async (e)=>{
       const file = e.target.files[0]; if(!file) return;
       state.aiStatus='Reading PDF…'; refreshStatus();
-      try{ const pages = await extractPdfPages(file); state.aiPages = pages.map((t,i)=>({index:i+1,text:t})); state.aiStatus = pages.length+' page(s) extracted.'; }
-      catch(err){ console.error(err); state.aiStatus='Could not read that PDF.'; }
+      try{
+        const pages = await extractPdfPages(file);
+        state.aiPages = pages.map((t,i)=>({index:i+1,text:t}));
+        state.aiStatus = pages.length+' page(s) extracted — pick one below, or it defaults to page 1.';
+        if(state.aiPages.length){ card.querySelector('#aiPasteArea').value = state.aiPages[0].text; }
+      }catch(err){ console.error(err); state.aiStatus='Could not read that PDF.'; }
       render();
     };
-    card.querySelector('#aiParsePasteBtn').onclick = ()=>runImportOnText(card.querySelector('#aiPasteArea').value);
-    const pw = card.querySelector('#aiPagesWrap');
-    if(state.aiPages.length){
-      pw.innerHTML = state.aiPages.map(p=>`<div class="pagecard">
-        <div class="ptop"><b>Page ${p.index}</b><button class="btn small terracotta" data-page="${p.index}">Parse this page with AI</button></div>
-        <div class="pagepreview">${esc(p.text.slice(0,300))}…</div></div>`).join('');
-      pw.querySelectorAll('[data-page]').forEach(b=>{ b.onclick=()=>{ const p=state.aiPages.find(x=>x.index===Number(b.dataset.page)); if(p) runImportOnText(p.text); }; });
+    const pw = card.querySelector('#aiPageSelectWrap');
+    if(state.aiPages.length > 1){
+      pw.innerHTML = `<div class="field"><label>PDF page to load into the box below</label>
+        <select id="aiPageSel">${state.aiPages.map(p=>`<option value="${p.index}">Page ${p.index} — ${esc(p.text.slice(0,60))}…</option>`).join('')}</select></div>`;
+      pw.querySelector('#aiPageSel').onchange = (e)=>{
+        const p = state.aiPages.find(x=>x.index===Number(e.target.value));
+        if(p) card.querySelector('#aiPasteArea').value = p.text;
+      };
     }
+    card.querySelector('#aiParseBtn').onclick = ()=>runImportOnText(card.querySelector('#aiPasteArea').value);
     refreshStatus();
+    renderDebugPanel();
   },0);
   return card;
 }
