@@ -138,8 +138,8 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const sb = (SUPABASE_URL.includes('YOUR-PROJECT')) ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
-const HOURS = ["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00"];
-const SLOTS = ["07:00-07:50","08:00-08:50","09:00-09:50","10:00-10:50","11:00-11:50","12:00-12:50","13:00-13:50","14:00-14:50"];
+const HOURS = ["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
+const SLOTS = ["07:00-07:50","08:00-08:50","09:00-09:50","10:00-10:50","11:00-11:50","12:00-12:50","13:00-13:50","14:00-14:50","15:00-15:50","16:00-16:50","17:00-17:50"];
 
 function uid(){ return Math.random().toString(36).slice(2,10); }
 function toast(msg){
@@ -194,6 +194,36 @@ async function fetchAllRows(table, orderCol, ascending){
     from += pageSize;
   }
   return all;
+}
+function countDuplicates(list, keyFn){
+  const seen = new Set();
+  let dupes = 0;
+  for(const item of list){
+    const k = keyFn(item);
+    if(seen.has(k)) dupes++; else seen.add(k);
+  }
+  return dupes;
+}
+async function removeDuplicates(statusEl){
+  const modKeyFn = m=>[m.code,m.day,m.start_time,m.end_time,m.venue,m.programme_id].join('|');
+  const examKeyFn = e=>[e.code,e.exam_date,e.start_time,e.end_time,e.venue,e.programme_id].join('|');
+  let totalRemoved = 0;
+  for(const [table, list, keyFn] of [['modules', state.modules, modKeyFn], ['exams', state.exams, examKeyFn]]){
+    const seen = new Map(); // key -> id to keep
+    const toDelete = [];
+    for(const item of list){
+      const k = keyFn(item);
+      if(seen.has(k)) toDelete.push(item.id); else seen.set(k, item.id);
+    }
+    for(let i=0;i<toDelete.length;i+=200){
+      const batch = toDelete.slice(i, i+200);
+      if(statusEl) statusEl.textContent = `Removing duplicates from ${table}… ${Math.min(i+200,toDelete.length)} of ${toDelete.length}`;
+      const { error } = await sb.from(table).delete().in('id', batch);
+      if(error) console.error(error); else totalRemoved += batch.length;
+    }
+  }
+  await loadAll();
+  return totalRemoved;
 }
 async function loadAll(){
   const [f,p,m,e,s] = await Promise.all([
@@ -479,15 +509,21 @@ function renderSearchList(student, q){
 function renderMyCourses(student){
   const card=document.createElement('div'); card.className='card';
   const mods = myModules(student);
-  card.innerHTML = `<h2><span class="htitle">My registered courses</span> <span class="pill">${mods.length} modules</span></h2>`;
+  const uniqueCodes = new Set(mods.map(m=>m.code));
+  card.innerHTML = `<h2><span class="htitle">My registered courses</span> <span class="pill">${uniqueCodes.size} module${uniqueCodes.size!==1?'s':''}</span></h2>`;
   if(mods.length===0){ card.innerHTML += `<div class="empty-state"><div class="big">📚</div>Nothing selected yet — choose a faculty and course on the left.</div>`; return card; }
   const byProg = {};
   mods.forEach(m=>{ (byProg[m.programme_id]=byProg[m.programme_id]||[]).push(m); });
   Object.keys(byProg).forEach(pid=>{
     const g=document.createElement('div'); g.className='coursegroup';
+    const groups = groupModulesByCode(byProg[pid]);
+    const chips = Object.keys(groups).sort().map(code=>{
+      const n = groups[code].length;
+      return `<span class="modchip">${esc(code)}${n>1?` ×${n}`:''}</span>`;
+    }).join('');
     g.innerHTML = `<div class="cgfac">${esc(facName(state.programmes.find(p=>p.id===pid)?.faculty_id))}</div>
       <div class="cgtitle">${esc(progName(pid))}</div>
-      <div>${byProg[pid].map(m=>`<span class="modchip">${esc(m.code)}</span>`).join('')}</div>`;
+      <div>${chips}</div>`;
     card.appendChild(g);
   });
   return card;
@@ -532,18 +568,67 @@ function renderExamsCard(student){
 
 function exportPdf(student){
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  doc.setFontSize(16); doc.text('UNESWA Personal Timetable', 14, 16);
-  doc.setFontSize(10); doc.text(`${student.name || student.id}  ·  ${state.meta.semester || ''}`, 14, 23);
-  const mods = myModules(student).slice().sort((a,b)=> DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || a.start_time.localeCompare(b.start_time));
-  doc.autoTable({ startY:28, head:[['Day','Time','Module','Venue']], body: mods.map(m=>[m.day, `${m.start_time}-${m.end_time||''}`, m.code, m.venue||'TBC']), styles:{fontSize:9} });
+  const doc = new jsPDF({ orientation: 'landscape' });
+  const mods = myModules(student);
+
+  // Header banner
+  doc.setFillColor(31, 61, 46); // forest green
+  doc.rect(0, 0, doc.internal.pageSize.getWidth(), 22, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(16); doc.text('UNESWA Personal Timetable', 10, 10);
+  doc.setFontSize(10); doc.text(`${student.name || student.id}  ·  ${student.id}  ·  ${state.meta.semester || ''}`, 10, 17);
+  doc.setTextColor(0,0,0);
+
+  // Build the grid exactly like the on-screen view: rows = hour slots, cols = days
+  const head = [['Time', ...DAYS]];
+  const body = HOURS.map(h=>{
+    const hourNum = Number(h.split(':')[0]);
+    const row = [h];
+    DAYS.forEach(day=>{
+      const cell = mods.filter(m=> m.day===day && Number(m.start_time.split(':')[0])===hourNum)
+        .sort((a,b)=>a.start_time.localeCompare(b.start_time))
+        .map(m=>`${m.code}\n${m.start_time}-${m.end_time||''}\n${m.venue||'TBC'}`)
+        .join('\n\n');
+      row.push(cell);
+    });
+    return row;
+  });
+
+  doc.autoTable({
+    startY: 27,
+    head, body,
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2, valign: 'top', lineColor: [220,220,220], lineWidth: 0.2 },
+    headStyles: { fillColor: [31,61,46], textColor: 255, fontStyle: 'bold', halign: 'center' },
+    columnStyles: { 0: { cellWidth: 18, fontStyle: 'bold', halign: 'center', fillColor: [247,245,238] } },
+    alternateRowStyles: { fillColor: [252,251,247] },
+    didParseCell: (data)=>{
+      if(data.section==='body' && data.column.index>0 && data.cell.raw){ data.cell.styles.fillColor = [243,230,196]; } // highlight occupied cells
+    }
+  });
+
   const exams = myExams(student);
   if(exams.length){
     let y = doc.lastAutoTable.finalY + 10;
-    doc.setFontSize(12); doc.text('Exam schedule', 14, y);
-    doc.autoTable({ startY:y+4, head:[['Module','Date','Time','Venue']], body: exams.map(e=>[e.code, e.exam_date||'TBC', e.start_time||'', e.venue||'TBC']), styles:{fontSize:9} });
+    if(y > doc.internal.pageSize.getHeight() - 40){ doc.addPage(); y = 15; }
+    doc.setFontSize(12); doc.setTextColor(31,61,46); doc.text('Exam schedule', 10, y); doc.setTextColor(0,0,0);
+    doc.autoTable({
+      startY: y+4,
+      head:[['Module','Date','Time','Venue']],
+      body: exams.map(e=>[e.code, e.exam_date||'TBC', `${e.start_time||''}${e.end_time?'-'+e.end_time:''}`, e.venue||'TBC']),
+      styles:{fontSize:9}, theme:'grid',
+      headStyles: { fillColor: [166,51,63], textColor: 255, fontStyle: 'bold' }
+    });
   }
-  doc.save('uneswa-timetable.pdf');
+
+  const pageCount = doc.internal.getNumberOfPages();
+  for(let i=1;i<=pageCount;i++){
+    doc.setPage(i);
+    doc.setFontSize(8); doc.setTextColor(140,140,140);
+    doc.text(`Generated ${new Date().toLocaleDateString()} · University of Eswatini`, 10, doc.internal.pageSize.getHeight()-6);
+  }
+
+  doc.save(`${(student.name||student.id).replace(/\s+/g,'-')}-timetable.pdf`);
   toast('PDF downloaded');
 }
 
@@ -769,11 +854,22 @@ function renderAdminEntries(kind){
         const progIdMap = {};
         for(const name of distinctProgs){ progIdMap[name] = await resolveProgrammeId(name, null); }
 
-        // Step 2: build all row objects, then insert in batches
-        const rows = parsed.map(p => isMod
-          ? { code:p.code, day:p.a, start_time:p.start, end_time:p.end, venue:p.venue, programme_id: progIdMap[p.prog] }
-          : { code:p.code, exam_date:p.a, start_time:p.start, end_time:p.end, venue:p.venue, programme_id: progIdMap[p.prog] }
-        );
+        // Step 2: build all row objects, then drop anything that's already in the
+        // database or duplicated within this paste, so re-running import is safe
+        const dedupeKey = r => isMod
+          ? [r.code, r.day, r.start_time, r.end_time, r.venue, r.programme_id].join('|')
+          : [r.code, r.exam_date, r.start_time, r.end_time, r.venue, r.programme_id].join('|');
+        const seen = new Set(list.map(dedupeKey));
+        const rows = [];
+        let duplicates = 0;
+        for(const p of parsed){
+          const row = isMod
+            ? { code:p.code, day:p.a, start_time:p.start, end_time:p.end, venue:p.venue, programme_id: progIdMap[p.prog] }
+            : { code:p.code, exam_date:p.a, start_time:p.start, end_time:p.end, venue:p.venue, programme_id: progIdMap[p.prog] };
+          const k = dedupeKey(row);
+          if(seen.has(k)){ duplicates++; continue; }
+          seen.add(k); rows.push(row);
+        }
         const BATCH = 500;
         let inserted = 0, failed = 0;
         for(let i=0;i<rows.length;i+=BATCH){
@@ -783,7 +879,7 @@ function renderAdminEntries(kind){
           if(error){ console.error(error); failed += batch.length; }
           else inserted += (data ? data.length : batch.length);
         }
-        statusEl.textContent = `Done — ${inserted} imported${failed?`, ${failed} failed (see console)`:''}${skipped?`, ${skipped} lines skipped (wrong format)`:''}.`;
+        statusEl.textContent = `Done — ${inserted} imported${duplicates?`, ${duplicates} duplicates skipped`:''}${failed?`, ${failed} failed (see console)`:''}${skipped?`, ${skipped} lines skipped (wrong format)`:''}.`;
         toast(statusEl.textContent);
         if(!failed) card.querySelector('#bulkArea').value='';
       }catch(err){
@@ -1348,10 +1444,20 @@ function renderAdminStudents(){
 /* ---------------- Settings ---------------- */
 function renderAdminSettings(){
   const card=document.createElement('div'); card.className='card';
+  const modDupeCount = countDuplicates(state.modules, m=>[m.code,m.day,m.start_time,m.end_time,m.venue,m.programme_id].join('|'));
+  const examDupeCount = countDuplicates(state.exams, e=>[e.code,e.exam_date,e.start_time,e.end_time,e.venue,e.programme_id].join('|'));
   card.innerHTML = `<h2><span class="htitle">Timetable settings</span></h2>
     <div class="field"><label>Semester / version label</label>
       <input id="semInput" value="${esc(state.meta.semester)}" placeholder="e.g. Semester 1, 2026/2027"></div>
     <button class="btn secondary" id="saveSemBtn">Update label (no reset)</button>
+
+    <div class="divider"></div>
+    <h2><span class="htitle">Clean up duplicate entries</span></h2>
+    ${(modDupeCount+examDupeCount) > 0
+      ? `<div class="warnbox">Found ${modDupeCount} duplicate class session(s) and ${examDupeCount} duplicate exam entr${examDupeCount===1?'y':'ies'} — likely from bulk-importing the same file more than once. This removes the extras and keeps one copy of each.</div>
+         <button class="btn danger" id="cleanupBtn">Remove ${modDupeCount+examDupeCount} duplicate entries</button>`
+      : `<div class="infobox">No duplicates found — the timetable looks clean.</div>`}
+    <div id="cleanupStatus" class="muted" style="margin-top:8px;font-weight:600;"></div>
 
     <div class="divider"></div>
     <h2><span class="htitle">Start a new semester</span></h2>
@@ -1366,6 +1472,15 @@ function renderAdminSettings(){
     card.querySelector('#saveSemBtn').onclick = async ()=>{
       await sb.from('settings').update({semester: card.querySelector('#semInput').value||'Not set', updated_at:new Date().toISOString()}).eq('id',1);
       toast('Label updated');
+    };
+    const cleanupBtn = card.querySelector('#cleanupBtn');
+    if(cleanupBtn) cleanupBtn.onclick = async ()=>{
+      if(!confirm(`Delete ${modDupeCount+examDupeCount} duplicate entries? One copy of each is always kept.`)) return;
+      cleanupBtn.disabled = true;
+      const statusEl = card.querySelector('#cleanupStatus');
+      const removed = await removeDuplicates(statusEl);
+      statusEl.textContent = `Removed ${removed} duplicate entries.`;
+      toast(statusEl.textContent);
     };
     card.querySelector('#startSemBtn').onclick = async ()=>{
       const label = card.querySelector('#newSemInput').value.trim();
