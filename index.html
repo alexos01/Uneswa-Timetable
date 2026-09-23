@@ -156,7 +156,7 @@ const state = {
   meta:{semester:"Not set yet", updated_at:null, semester_version:1},
   isAdmin:false, adminSession:null,
   currentStudentId:null, currentStudent:null, resetNotice:false,
-  pickFaculty:'', pickProgramme:'',
+  pickFaculty:'', pickProgramme:'', pickYear:'',
   notif:{enabled:false, minutesBefore:15},
   tab:'student', adminTab:'faculties',
   aiImportFaculty:'', aiImportProgramme:'', aiImportKind:'modules', aiPages:[], aiPending:[], aiStatus:'', aiDebugRaw:[], aiPasteText:'',
@@ -166,6 +166,15 @@ const state = {
 function progName(id){ const p = state.programmes.find(x=>x.id===id); return p? p.name : 'Unassigned'; }
 function facName(id){ const f = state.faculties.find(x=>x.id===id); return f? f.name : 'No faculty'; }
 function programmesInFaculty(facId){ return state.programmes.filter(p=>p.faculty_id===facId); }
+function moduleYear(code){
+  const m = (code||'').match(/[A-Z]{2,5}(\d)\d{2}/);
+  return m ? Number(m[1]) : null;
+}
+function yearLabel(y){
+  if(y==null) return 'Other';
+  const suffix = y===1?'st':y===2?'nd':y===3?'rd':'th';
+  return `${y}${suffix} year`;
+}
 
 /* ---------------- config gate ---------------- */
 function renderNoConfig(){
@@ -395,7 +404,9 @@ function renderStudent(){
         </select></div>
       <div class="field"><label><span class="stepnum">2</span>Course</label>
         <select id="progSel"><option value="">Choose a course…</option></select></div>
-      <div class="field"><label><span class="stepnum">3</span>Modules on this course</label></div>
+      <div class="field"><label><span class="stepnum">3</span>Year (optional — narrows the list)</label>
+        <select id="yearSel"><option value="">All years</option></select></div>
+      <div class="field"><label><span class="stepnum">4</span>Modules on this course</label></div>
       <div class="modlist" id="modList"></div>
       <div class="divider"></div>
       <div class="field"><label>Or search any module code (electives)</label><input id="modSearch" placeholder="e.g. ACF411"></div>
@@ -420,13 +431,21 @@ function renderStudent(){
   setTimeout(()=>{
     const facSel = document.getElementById('facSel');
     const progSel = document.getElementById('progSel');
+    const yearSel = document.getElementById('yearSel');
     function refreshProgOptions(){
       const opts = programmesInFaculty(state.pickFaculty);
       progSel.innerHTML = `<option value="">Choose a course…</option>` + opts.map(p=>`<option value="${p.id}" ${state.pickProgramme===p.id?'selected':''}>${esc(p.name)}</option>`).join('');
     }
-    facSel.onchange = e=>{ state.pickFaculty = e.target.value; state.pickProgramme=''; refreshProgOptions(); renderProgModList(student); };
-    progSel.onchange = e=>{ state.pickProgramme = e.target.value; renderProgModList(student); };
+    function refreshYearOptions(){
+      const mods = state.modules.filter(m=>m.programme_id===state.pickProgramme);
+      const years = [...new Set(mods.map(m=>moduleYear(m.code)).filter(y=>y!=null))].sort((a,b)=>a-b);
+      yearSel.innerHTML = `<option value="">All years</option>` + years.map(y=>`<option value="${y}" ${String(state.pickYear)===String(y)?'selected':''}>${yearLabel(y)}</option>`).join('');
+    }
+    facSel.onchange = e=>{ state.pickFaculty = e.target.value; state.pickProgramme=''; state.pickYear=''; refreshProgOptions(); refreshYearOptions(); renderProgModList(student); };
+    progSel.onchange = e=>{ state.pickProgramme = e.target.value; state.pickYear=''; refreshYearOptions(); renderProgModList(student); };
+    yearSel.onchange = e=>{ state.pickYear = e.target.value; renderProgModList(student); };
     refreshProgOptions();
+    refreshYearOptions();
     renderProgModList(student);
     document.getElementById('modSearch').oninput = e=>renderSearchList(student, e.target.value);
     const nt=document.getElementById('notifToggle');
@@ -467,8 +486,9 @@ function renderProgModList(student){
   const el = document.getElementById('modList');
   if(!el) return;
   if(!state.pickProgramme){ el.innerHTML = `<div class="empty-state">Pick a faculty and course above to see its modules.</div>`; return; }
-  const mods = state.modules.filter(m=>m.programme_id===state.pickProgramme);
-  if(mods.length===0){ el.innerHTML = `<div class="empty-state">No modules loaded for this course yet.</div>`; return; }
+  let mods = state.modules.filter(m=>m.programme_id===state.pickProgramme);
+  if(state.pickYear){ mods = mods.filter(m=>String(moduleYear(m.code))===String(state.pickYear)); }
+  if(mods.length===0){ el.innerHTML = `<div class="empty-state">${state.pickYear?'No modules for that year on this course.':'No modules loaded for this course yet.'}</div>`; return; }
   const groups = groupModulesByCode(mods);
   const codes = Object.keys(groups).sort();
   el.innerHTML = codes.map(code=>{
@@ -800,7 +820,8 @@ function renderAdminEntries(kind){
   const isMod = kind==='modules';
   const list = isMod ? state.modules : state.exams;
   const card=document.createElement('div'); card.className='card';
-  card.innerHTML = `<h2><span class="htitle">${isMod?'Class timetable':'Exam timetable'}</span> <span class="pill">${list.length} entries</span></h2>
+  card.innerHTML = `<h2><span class="htitle">${isMod?'Class timetable':'Exam timetable'}</span> <span class="pill">${list.length} entries</span>
+      ${list.length ? `<button class="btn small danger" id="deleteAllBtn" style="margin-left:auto;">Delete all ${list.length} entries</button>` : ''}</h2>
     <div class="field"><label>Bulk import — paste as many lines as you like, one entry per line</label>
       <textarea id="bulkArea" style="min-height:160px;" placeholder="${isMod?'ACF411, Monday, 07:00, 07:50, G.005/G.006, Bachelor of Commerce':'ACF411, 2026-12-05, 09:00, 12:00, MPH, Bachelor of Commerce'}"></textarea>
       <div class="muted" style="margin-top:4px;">Format: ${isMod?'code, day, start, end, venue, course name':'code, date (YYYY-MM-DD), start, end, venue, course name'}. Unknown course names are created automatically (with no faculty — assign one in Faculties &amp; Courses). Works for a handful of lines or several thousand at once.</div>
@@ -832,6 +853,14 @@ function renderAdminEntries(kind){
   setTimeout(()=>{
     const statusEl = card.querySelector('#importStatus');
     const btn = card.querySelector('#importBtn');
+    const deleteAllBtn = card.querySelector('#deleteAllBtn');
+    if(deleteAllBtn) deleteAllBtn.onclick = async ()=>{
+      if(!confirm(`Delete all ${list.length} ${isMod?'class':'exam'} entries? This cannot be undone.`)) return;
+      deleteAllBtn.disabled = true; deleteAllBtn.textContent = 'Deleting…';
+      const { error } = await sb.from(isMod?'modules':'exams').delete().neq('id','00000000-0000-0000-0000-000000000000');
+      if(error){ console.error(error); toast('Delete failed — see console'); deleteAllBtn.disabled=false; }
+      else toast('All entries deleted');
+    };
     btn.onclick = async ()=>{
       const raw = card.querySelector('#bulkArea').value.trim();
       if(!raw) return;
