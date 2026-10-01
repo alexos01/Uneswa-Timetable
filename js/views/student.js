@@ -1,6 +1,7 @@
 import { DAYS, HOURS } from '../config.js';
 import { checkSemesterReset, fetchStudent, saveStudent, ensureCampus } from '../db.js';
 import { renderNoticeList } from './notices.js';
+import { isNative, requestNotificationPermission } from '../platform.js';
 import { exportPdf } from '../pdf.js';
 import { render } from '../render.js';
 import { facName, moduleYear, progName, programmesInFaculty, state, yearLabel } from '../state.js';
@@ -135,7 +136,7 @@ export function renderStudent(){
       <label class="row" style="font-size:13px;"><input type="checkbox" id="notifToggle" ${state.notif.enabled?'checked':''}> Notify me before class starts</label>
       <div class="field" style="margin-top:10px;"><label>Minutes before</label>
         <select id="notifMins">${[5,10,15,30,60].map(m=>`<option value="${m}" ${state.notif.minutesBefore===m?'selected':''}>${m} minutes</option>`).join('')}</select></div>
-      <div class="muted">Works while this app is open in your browser or installed on your phone/desktop.</div>
+      <div class="muted">${isNative ? 'Reminders arrive even when the app is closed, including the evening before a test.' : 'In a browser, reminders only arrive while this page is open. Install the Android or iPhone app to get them when it is closed.'}</div>
     </div>`;
   grid2.appendChild(left);
 
@@ -173,15 +174,20 @@ export function renderStudent(){
     document.getElementById('searchAll').onchange = e=>{ state.searchAllCourses = e.target.checked; renderSearchList(student, state.searchQuery); };
     if(state.searchQuery) renderSearchList(student, state.searchQuery);
     const nt=document.getElementById('notifToggle');
+    const saveNotif = ()=>{
+      try{ localStorage.setItem('uneswa_notif', JSON.stringify(state.notif)); }catch{}
+      document.dispatchEvent(new CustomEvent('timetable:changed'));
+    };
     nt.onchange = async (e)=>{
       state.notif.enabled = e.target.checked;
-      if(e.target.checked && 'Notification' in window){
-        const perm = await Notification.requestPermission();
-        if(perm!=='granted'){ state.notif.enabled=false; e.target.checked=false; toast('Notifications blocked in browser settings'); }
+      if(e.target.checked){
+        const granted = await requestNotificationPermission().catch(()=>false);
+        if(!granted){ state.notif.enabled=false; e.target.checked=false; toast('Notifications are turned off for this app in your phone or browser settings'); }
+        else toast(`You'll be reminded ${state.notif.minutesBefore} minutes before each class`);
       }
-      localStorage.setItem('uneswa_notif', JSON.stringify(state.notif));
+      saveNotif();
     };
-    document.getElementById('notifMins').onchange = e=>{ state.notif.minutesBefore=Number(e.target.value); localStorage.setItem('uneswa_notif', JSON.stringify(state.notif)); };
+    document.getElementById('notifMins').onchange = e=>{ state.notif.minutesBefore=Number(e.target.value); saveNotif(); };
   },0);
 
   return wrap;

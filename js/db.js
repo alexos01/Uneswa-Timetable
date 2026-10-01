@@ -144,12 +144,13 @@ export function subscribeRealtime(){
 }
 export async function refreshAndRender(){
   const prevVersion = state.meta.semester_version;
-  try{ await loadAll(); }catch(err){ console.error(err); return; }
+  try{ await loadAll(); state.offline = false; }catch(err){ console.error(err); return; }
   if(state.currentStudent && state.meta.semester_version !== prevVersion){
     const wasReset = checkSemesterReset(state.currentStudent);
     if(wasReset){ await saveStudent(state.currentStudent); state.resetNotice = true; }
   }
   render();
+  document.dispatchEvent(new CustomEvent('timetable:changed'));
 }
 
 export function checkSemesterReset(student){

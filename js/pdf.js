@@ -1,9 +1,10 @@
 import { DAYS, HOURS } from './config.js';
 import { state } from './state.js';
 import { toast } from './util.js';
+import { savePdf } from './platform.js';
 import { myExams, myModules } from './views/student.js';
 
-export function exportPdf(student){
+export async function exportPdf(student){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'landscape' });
   const mods = myModules(student);
@@ -65,6 +66,11 @@ export function exportPdf(student){
     doc.text(`Generated ${new Date().toLocaleDateString()} · University of Eswatini`, 10, doc.internal.pageSize.getHeight()-6);
   }
 
-  doc.save(`${(student.name||student.id).replace(/\s+/g,'-')}-timetable.pdf`);
-  toast('PDF downloaded');
+  const filename = `${(student.name||student.id).replace(/\s+/g,'-')}-timetable.pdf`;
+  try{
+    const how = await savePdf(doc, filename);
+    toast(how === 'shared' ? 'PDF ready to save or share' : 'PDF downloaded');
+  }catch(err){
+    if(!/cancel/i.test(err?.message||'')) toast('Could not export the PDF: '+(err?.message||err));
+  }
 }
