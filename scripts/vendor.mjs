@@ -7,6 +7,7 @@ const libs = [
   ['@supabase/supabase-js', 'dist/umd/supabase.js', 'supabase.js'],
   ['jspdf', 'dist/jspdf.umd.min.js', 'jspdf.umd.min.js'],
   ['jspdf-autotable', 'dist/jspdf.plugin.autotable.min.js', 'jspdf.plugin.autotable.min.js'],
+  ['@capacitor/core', 'dist/index.js', 'capacitor-core.js'],
 ];
 
 await mkdir('vendor', { recursive: true });
