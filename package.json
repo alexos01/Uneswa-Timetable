@@ -11,8 +11,8 @@
     "sync": "npm run build && npx cap sync",
     "android": "npm run sync && npx cap open android",
     "ios": "npm run sync && npx cap open ios",
-    "test": "node --test tests/unit",
-    "test:ui": "node --test --test-concurrency=1 tests/ui/",
+    "test": "node --test \"tests/unit/*.test.mjs\"",
+    "test:ui": "node --test --test-concurrency=1 \"tests/ui/*.test.mjs\"",
     "test:db": "bash tests/db/run.sh"
   },
   "devDependencies": {
