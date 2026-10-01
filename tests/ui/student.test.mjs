@@ -59,3 +59,19 @@ test('search is scoped to the chosen course, electives only when asked', async (
   assert.equal(await page.inputValue('#modSearch'), 'CSC111', 'query survives the re-render');
   assert.deepEqual(errors, []);
 });
+
+test('opens offline with the last saved timetable', async ()=>{
+  const { page, context, errors } = await openApp(browser, server.url, legacySeed());
+  await signIn(page, '202100999', 'Offline Student');
+  await page.selectOption('#facSel', ids.FAC_SCI);
+  await page.selectOption('#progSel', ids.BSC_CS);
+  await page.locator('#modList .modrow', { hasText:'CSC211' }).locator('input').check();
+  await page.waitForSelector('table.grid .cell-mod');
+  await context.addInitScript(()=>{ window.__FAKE_DB__.failNetwork = true; });
+  await page.reload();
+  await page.waitForSelector('table.grid .cell-mod');
+  assert.match(await page.textContent('#semesterLabel'), /offline/);
+  assert.match(await page.textContent('table.grid'), /CSC211/);
+  assert.match(await page.textContent('#toast'), /You're offline/);
+  assert.deepEqual(errors.filter(e=>!/Failed to fetch|fetchAllRows/.test(e)), []);
+});
