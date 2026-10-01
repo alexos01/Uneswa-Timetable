@@ -136,3 +136,8 @@ textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;
   table.grid{font-size:11px;}
   .footinner{padding:18px 16px 24px;}
 }
+
+/* Native shell: keep content clear of the notch and home indicator. */
+.native .topbar{padding-top:calc(12px + env(safe-area-inset-top, 0px));}
+.native .sitefooter{padding-bottom:env(safe-area-inset-bottom, 0px);}
+.native body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;}
