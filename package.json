@@ -12,7 +12,8 @@
     "android": "npm run sync && npx cap open android",
     "ios": "npm run sync && npx cap open ios",
     "test": "node --test tests/unit",
-    "test:ui": "node --test --test-concurrency=1 tests/ui/"
+    "test:ui": "node --test --test-concurrency=1 tests/ui/",
+    "test:db": "bash tests/db/run.sh"
   },
   "devDependencies": {
     "playwright-core": "^1.63.0"
