@@ -12,9 +12,14 @@
     "android": "npm run sync && npx cap open android",
     "ios": "npm run sync && npx cap open ios",
     "test": "node --test tests/unit",
-    "test:ui": "node tests/ui/run.mjs"
+    "test:ui": "node --test --test-concurrency=1 tests/ui/"
   },
   "devDependencies": {
     "playwright-core": "^1.63.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8"
   }
 }
