@@ -64,14 +64,18 @@ export async function loadAll(){
   state.exams = e || [];
   if(s.data) state.meta = s.data;
 }
+let refreshTimer = null;
+// Bulk imports fire one realtime event per row; coalesce them into a single reload.
+export function scheduleRefresh(delay=600){
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(()=>refreshAndRender(), delay);
+}
 export function subscribeRealtime(){
-  sb.channel('db-changes')
-    .on('postgres_changes', {event:'*', schema:'public', table:'faculties'}, ()=>refreshAndRender())
-    .on('postgres_changes', {event:'*', schema:'public', table:'programmes'}, ()=>refreshAndRender())
-    .on('postgres_changes', {event:'*', schema:'public', table:'modules'}, ()=>refreshAndRender())
-    .on('postgres_changes', {event:'*', schema:'public', table:'exams'}, ()=>refreshAndRender())
-    .on('postgres_changes', {event:'*', schema:'public', table:'settings'}, ()=>refreshAndRender())
-    .subscribe();
+  const ch = sb.channel('db-changes');
+  for(const table of ['faculties','programmes','modules','exams','settings']){
+    ch.on('postgres_changes', {event:'*', schema:'public', table}, ()=>scheduleRefresh());
+  }
+  ch.subscribe();
 }
 export async function refreshAndRender(){
   const prevVersion = state.meta.semester_version;
