@@ -55,7 +55,9 @@ export function renderStudentGate(){
       if(campus) student.campus_id = campus;
       const wasReset = checkSemesterReset(student);
       const saved = await saveStudent(student);
-      if(saved){ state.currentStudentId = id; localStorage.setItem('uneswa_last_student', id); state.resetNotice = wasReset; }
+      if(!saved){ document.getElementById('gateGo').disabled = false; return; }
+      state.currentStudentId = id; state.resetNotice = wasReset;
+      try{ localStorage.setItem('uneswa_last_student', id); }catch{}
       document.dispatchEvent(new CustomEvent('timetable:changed'));
       render();
     };
@@ -94,7 +96,13 @@ export function renderStudent(){
       document.dispatchEvent(new CustomEvent('timetable:changed'));
       render();
     };
-    document.getElementById('switchStudentBtn').onclick=()=>{ state.currentStudentId=null; state.currentStudent=null; localStorage.removeItem('uneswa_last_student'); render(); }; },0);
+    document.getElementById('switchStudentBtn').onclick=()=>{
+      state.currentStudentId=null; state.currentStudent=null;
+      try{ localStorage.removeItem('uneswa_last_student'); }catch{}
+      document.dispatchEvent(new CustomEvent('timetable:changed')); // clears this student's reminders
+      render();
+    };
+  },0);
 
   const nc = nextClass(student);
   const banner=document.createElement('div');
