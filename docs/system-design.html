@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UNESWA Timetable Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --ground:#F3F5F1; --surface:#FFFFFF; --ink:#16211B; --ink-soft:#55625A;
+  --forest:#1F3D2E; --accent:#9A6A12; --accent-fill:#F4E7C9; --line:#D9E0D9;
+  --ok:#2E6B47; --ok-fill:#E2EFE6; --warn:#8A5A00; --warn-fill:#FBEFD6; --crit:#9B2C2C; --crit-fill:#F8E1E1;
+  --code-bg:#EBEFEA;
+  --display:'Fraunces', Georgia, 'Times New Roman', serif;
+  --body:'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+  --mono:'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --ground:#0F1712; --surface:#16211B; --ink:#E4EBE6; --ink-soft:#9DAAA2;
+    --forest:#8CC3A2; --accent:#E2B357; --accent-fill:#3A2F17; --line:#28362D;
+    --ok:#8CC3A2; --ok-fill:#1C3326; --warn:#E8C26E; --warn-fill:#3A2F17; --crit:#F0A3A3; --crit-fill:#3B1F1F;
+    --code-bg:#1D2A22;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --ground:#0F1712; --surface:#16211B; --ink:#E4EBE6; --ink-soft:#9DAAA2;
+  --forest:#8CC3A2; --accent:#E2B357; --accent-fill:#3A2F17; --line:#28362D;
+  --ok:#8CC3A2; --ok-fill:#1C3326; --warn:#E8C26E; --warn-fill:#3A2F17; --crit:#F0A3A3; --crit-fill:#3B1F1F;
+  --code-bg:#1D2A22;
+}
+*{box-sizing:border-box;}
+html{color-scheme:light;}
+@media (prefers-color-scheme: dark){html{color-scheme:dark;}}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.6;padding-inline:20px;padding-block:28px 64px;}
+.wrap{max-width:1120px;margin:0 auto;display:grid;grid-template-columns:210px minmax(0,1fr);gap:48px;}
+@media (max-width:880px){.wrap{grid-template-columns:minmax(0,1fr);gap:0;} nav.toc{display:none;}}
+nav.toc{position:sticky;top:calc(env(safe-area-inset-top,0px) + 24px);align-self:start;font-size:14px;}
+nav.toc .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:10px;}
+nav.toc a{display:block;color:var(--ink-soft);text-decoration:none;padding:4px 0 4px 12px;border-left:2px solid var(--line);}
+nav.toc a:hover,nav.toc a:focus-visible{color:var(--ink);border-left-color:var(--accent);outline:none;}
+article{min-width:0;max-width:760px;}
+header.doc{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:8px;}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);}
+h1{font-family:var(--display);font-weight:650;font-size:clamp(30px,5vw,42px);line-height:1.1;margin:8px 0 10px;text-wrap:balance;color:var(--ink);}
+.lede{font-size:18px;color:var(--ink-soft);max-width:62ch;margin:0;}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:16px;font-size:13.5px;color:var(--ink-soft);font-family:var(--mono);}
+section{padding-top:34px;}
+h2{font-family:var(--display);font-weight:650;font-size:25px;line-height:1.2;margin:0 0 12px;text-wrap:balance;scroll-margin-top:20px;}
+h3{font-size:16.5px;font-weight:700;margin:22px 0 6px;}
+p{margin:0 0 12px;max-width:68ch;}
+ul,ol{margin:0 0 12px;padding-left:22px;max-width:68ch;}
+li{margin-bottom:5px;}
+code{font-family:var(--mono);font-size:.86em;background:var(--code-bg);padding:1px 5px;border-radius:4px;}
+pre.block{font-family:var(--mono);font-size:13px;line-height:1.55;background:var(--code-bg);padding:14px 16px;border-radius:8px;overflow-x:auto;margin:0 0 14px;}
+pre.mermaid{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;overflow-x:auto;margin:6px 0 16px;}
+.decisions{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0 4px;}
+.decision{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;}
+.decision .k{font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-soft);}
+.decision .v{font-family:var(--display);font-size:19px;font-weight:650;margin:2px 0 4px;}
+.decision .d{font-size:14px;color:var(--ink-soft);}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:12px 0 14px;}
+.fact{background:var(--surface);padding:12px 14px;}
+.fact .n{font-family:var(--mono);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;}
+.fact .l{font-size:13px;color:var(--ink-soft);}
+.tbl{overflow-x:auto;margin:6px 0 16px;border:1px solid var(--line);border-radius:10px;background:var(--surface);}
+table{border-collapse:collapse;width:100%;font-size:14.5px;}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+th{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);font-weight:600;background:var(--ground);}
+tr:last-child td{border-bottom:none;}
+td code{white-space:nowrap;}
+.chip{display:inline-block;font-family:var(--mono);font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap;}
+.chip.yes{background:var(--ok-fill);color:var(--ok);}
+.chip.no{background:var(--crit-fill);color:var(--crit);}
+.chip.part{background:var(--warn-fill);color:var(--warn);}
+.callout{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--surface);border-radius:8px;padding:12px 16px;margin:12px 0 16px;}
+.callout.crit{border-left-color:var(--crit);}
+.callout p:last-child,.callout ul:last-child{margin-bottom:0;}
+ol.steps{counter-reset:s;list-style:none;padding-left:0;}
+ol.steps>li{counter-increment:s;position:relative;padding:10px 0 10px 46px;border-bottom:1px solid var(--line);margin:0;}
+ol.steps>li::before{content:counter(s);position:absolute;left:0;top:10px;width:30px;height:30px;border-radius:50%;background:var(--accent-fill);color:var(--accent);font-family:var(--mono);font-weight:600;font-size:13px;display:flex;align-items:center;justify-content:center;}
+ol.steps>li b{display:block;}
+ol.steps>li span{color:var(--ink-soft);font-size:14.5px;}
+.owner{font-family:var(--mono);font-size:12px;color:var(--accent);}
+a{color:var(--forest);}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+  <div class="lbl">Contents</div>
+  <a href="#summary">Summary</a>
+  <a href="#today">Where it stands</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#layout">Repo layout</a>
+  <a href="#data">Data model</a>
+  <a href="#access">Roles &amp; access</a>
+  <a href="#rollout">Safe rollout</a>
+  <a href="#native">Native features</a>
+  <a href="#features">Feature specs</a>
+  <a href="#release">Build &amp; release</a>
+  <a href="#plan">Delivery plan</a>
+  <a href="#risks">Risks &amp; open items</a>
+</nav>
+
+<article>
+<header class="doc">
+  <div class="eyebrow">System design · v1</div>
+  <h1>UNESWA Timetable for Android &amp; iOS</h1>
+  <p class="lede">Turning the web timetable students already use into installable Android and iPhone apps. Class reminders fire even when the app is closed, and the app gains multi-campus admin, lecturers and announcements.</p>
+  <div class="meta"><span>Repo: alexos01/Uneswa-Timetable</span><span>Branch: main</span><span>Drafted 1 Oct 2026</span></div>
+</header>
+
+<section id="summary">
+  <h2>Summary</h2>
+  <p>The app stays one codebase. The same HTML, CSS and JavaScript serves the website on GitHub Pages and runs inside a Capacitor shell for Android and iOS. Supabase remains the only backend. The mobile shell adds what a browser tab can't do reliably: scheduled notifications, sharing a PDF to WhatsApp or Files, the Android back button, and opening offline with the last saved timetable.</p>
+  <div class="decisions">
+    <div class="decision"><div class="k">Approach</div><div class="v">Capacitor wrap</div><div class="d">Reuses the working web app. No rewrite.</div></div>
+    <div class="decision"><div class="k">Backend</div><div class="v">Supabase, as today</div><div class="d">Postgres, Auth, Realtime. Schema extended by migration.</div></div>
+    <div class="decision"><div class="k">Git flow</div><div class="v">Small commits to main</div><div class="d">Every push leaves the live site working.</div></div>
+    <div class="decision"><div class="k">Scope</div><div class="v">4 feature areas</div><div class="d">Reminders, search fix, campuses, lecturers + announcements.</div></div>
+  </div>
+</section>
+
+<section id="today">
+  <h2>Where it stands today</h2>
+  <p>One file, <code>index.html</code> (about 1,560 lines), holds the whole app. It uses vanilla JavaScript that renders with template strings, supabase-js, jsPDF from a CDN, and an AI import panel that brings its own key for Anthropic, Gemini, OpenRouter or Ollama. GitHub Pages serves it straight from the root of <code>main</code>.</p>
+  <div class="facts">
+    <div class="fact"><div class="n">2,954</div><div class="l">class sessions loaded</div></div>
+    <div class="fact"><div class="n">37</div><div class="l">student records</div></div>
+    <div class="fact"><div class="n">0</div><div class="l">exam entries</div></div>
+    <div class="fact"><div class="n">1</div><div class="l">campus (Kwaluseni)</div></div>
+  </div>
+  <p style="font-size:14px;color:var(--ink-soft)">Counts were read from the live Supabase project through its public REST API on 1 Oct 2026.</p>
+  <h3>What limits it as a phone app</h3>
+  <ul>
+    <li>Reminders use <code>setInterval</code> plus the browser Notification API, so they only fire while the tab is open.</li>
+    <li>PDF export calls <code>doc.save()</code>, which does nothing inside an Android WebView.</li>
+    <li>Every realtime change reloads all 2,954 rows. A bulk import of 3,000 lines sets off thousands of full reloads.</li>
+    <li>Module search runs across every course, so students see modules from other streams.</li>
+    <li>There's one admin for everything, and no notion of campus, lecturer or announcement.</li>
+  </ul>
+</section>
+
+<section id="architecture">
+  <h2>Target architecture</h2>
+  <p>The web build and both app builds load the same files. The shell decides at runtime which platform adapter to use, so feature code never checks the platform itself.</p>
+<pre class="mermaid">
+flowchart LR
+  subgraph Code["One codebase (repo root)"]
+    UI["index.html + css/ + js/ (ES modules)"]
+    PA["js/platform.js<br/>web adapter | native adapter"]
+    UI --> PA
+  end
+  UI -- "served as-is" --> GP["GitHub Pages<br/>alexos01.github.io"]
+  UI -- "npm run build → www/" --> CAP["Capacitor 8 shell"]
+  CAP --> AND["Android app (APK / AAB)"]
+  CAP --> IOS["iOS app (Xcode project)"]
+  PA -. native only .-> LN["Local notifications<br/>Filesystem + Share<br/>App back button"]
+  GP --> SB[("Supabase<br/>Postgres + Auth + Realtime")]
+  AND --> SB
+  IOS --> SB
+</pre>
+  <h3>Why there's no bundler</h3>
+  <p>GitHub Pages serves <code>main</code> exactly as committed. If the code were split into ES modules that the browser loads directly, with third-party libraries copied into <code>vendor/</code>, the site would keep working on every push without touching the Pages settings. Capacitor only needs a folder of static files, so <code>npm run build</code> copies the web files into <code>www/</code> and <code>npx cap sync</code> carries them into both native projects. Native plugins are reached through <code>window.Capacitor.Plugins</code>, which Capacitor's native bridge injects, so no import step is needed either.</p>
+</section>
+
+<section id="layout">
+  <h2>Repo layout after the restructure</h2>
+<pre class="block">index.html                 app shell, shared by web and native
+css/app.css                styles pulled out of index.html
+js/
+  main.js                  boot: config gate, load, realtime, first render
+  config.js                Supabase URL + anon key, campuses, contact links
+  state.js  util.js        shared state, escaping, toasts, time helpers
+  db.js                    all Supabase reads/writes + capability detection
+  platform.js              web vs native: notifications, PDF share, back button
+  reminders.js  pdf.js     scheduling logic, timetable PDF
+  views/                   student, admin, lecturer, announcements, footer …
+vendor/                    pinned supabase-js, jsPDF, autotable (works offline)
+supabase/migrations/       numbered SQL, run once in the SQL editor
+capacitor.config.json  package.json  scripts/build-www.mjs
+android/  ios/             generated native projects, committed
+resources/                 icon + splash sources for @capacitor/assets
+.github/workflows/         Android APK + iOS simulator build on every push</pre>
+</section>
+
+<section id="data">
+  <h2>Data model</h2>
+  <p>The existing tables keep their shape and gain a <code>campus_id</code>, which defaults to <code>kwaluseni</code> so current rows land on the right campus. Five new tables cover campuses, staff roles, lecturer assignments, announcements and class notices.</p>
+<pre class="mermaid">
+erDiagram
+  campuses ||--o{ faculties : has
+  campuses ||--o{ campus_settings : has
+  faculties ||--o{ programmes : offers
+  programmes ||--o{ modules : "class sessions"
+  programmes ||--o{ exams : "exam sittings"
+  campuses ||--o{ students : enrols
+  campuses ||--o{ staff : employs
+  staff ||--o{ lecturer_modules : teaches
+  campuses ||--o{ announcements : posts
+  campuses ||--o{ class_notices : posts
+  campuses { text id PK  text name  int sort }
+  campus_settings { text campus_id PK  text semester  int semester_version  timestamptz updated_at }
+  staff { uuid user_id PK  text role  text campus_id  text display_name  text email }
+  lecturer_modules { uuid user_id  text campus_id  text code }
+  announcements { uuid id PK  text campus_id  text title  text body  bool pinned  timestamptz expires_at }
+  class_notices { uuid id PK  text campus_id  text code  text kind  date notice_date  text start_time  text venue  text details }
+  modules { uuid id PK  text campus_id  text code  text day  text start_time  text end_time  text venue  uuid programme_id }
+</pre>
+  <div class="tbl"><table>
+    <thead><tr><th>Table</th><th>Change</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td><code>campuses</code></td><td>New, seeded with Kwaluseni, Luyengo, Mbabane</td><td>One app, three campuses</td></tr>
+      <tr><td><code>campus_settings</code></td><td>New, Kwaluseni copied from <code>settings</code> row 1</td><td>Each campus resets its semester on its own</td></tr>
+      <tr><td><code>staff</code></td><td>New: <code>super_admin</code>, <code>campus_admin</code>, <code>lecturer</code></td><td>Replaces "any signed-in user is admin"</td></tr>
+      <tr><td><code>lecturer_modules</code></td><td>New: lecturer ↔ module code per campus</td><td>Limits what a lecturer can edit</td></tr>
+      <tr><td><code>announcements</code></td><td>New: campus or all-campus, pinned, expiry</td><td>Announcements tab</td></tr>
+      <tr><td><code>class_notices</code></td><td>New: test, cancelled, moved, extra, note</td><td>Lecturers flag tests and one-off changes. These also feed reminders.</td></tr>
+      <tr><td>faculties, programmes, modules, exams, students</td><td><code>campus_id</code> added, default <code>kwaluseni</code></td><td>Campus-scoped loads and search</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="access">
+  <h2>Roles &amp; access</h2>
+  <p>Postgres row-level security enforces the rules, not the UI. Three <code>security definer</code> helpers, <code>is_super_admin()</code>, <code>is_campus_admin(campus)</code> and <code>teaches(campus, code)</code>, keep the policies short. The migration drops every existing policy on the affected tables and recreates them, because the original policy names were never committed to the repo.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Action</th><th>Student (no login)</th><th>Lecturer</th><th>Campus admin</th><th>Super admin</th></tr></thead>
+    <tbody>
+      <tr><td>Read timetable, exams, announcements</td><td><span class="chip yes">all</span></td><td><span class="chip yes">all</span></td><td><span class="chip yes">all</span></td><td><span class="chip yes">all</span></td></tr>
+      <tr><td>Upload / bulk import / delete timetable</td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip part">own campus</span></td><td><span class="chip yes">any</span></td></tr>
+      <tr><td>Change a module's day, time, venue</td><td><span class="chip no">no</span></td><td><span class="chip part">own modules</span></td><td><span class="chip part">own campus</span></td><td><span class="chip yes">any</span></td></tr>
+      <tr><td>Post test / cancellation notice</td><td><span class="chip no">no</span></td><td><span class="chip part">own modules</span></td><td><span class="chip part">own campus</span></td><td><span class="chip yes">any</span></td></tr>
+      <tr><td>Post announcement</td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip part">own campus</span></td><td><span class="chip yes">any, incl. all-campus</span></td></tr>
+      <tr><td>Grant lecturer role</td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip part">own campus</span></td><td><span class="chip yes">any role</span></td></tr>
+      <tr><td>Register / edit own module list</td><td><span class="chip part">by student no.</span></td><td>n/a</td><td><span class="chip part">override, own campus</span></td><td><span class="chip yes">any</span></td></tr>
+    </tbody>
+  </table></div>
+  <h3>How staff get accounts</h3>
+  <ol>
+    <li>The person opens <b>Staff sign in → Create account</b> in the app, which runs a Supabase Auth sign-up.</li>
+    <li>Their campus admin enters the email under <b>Admin → Staff</b> and picks a role. The RPC <code>grant_staff_role(email, role, campus)</code> resolves the email to a user id on the server and checks that the caller is allowed to grant that role.</li>
+    <li>For a lecturer, the admin then assigns module codes.</li>
+  </ol>
+  <p>When the migration runs, every account in Authentication → Users becomes a <b>super admin</b>. Today that should only be the existing admin login, so check that list before running it.</p>
+</section>
+
+<section id="rollout">
+  <h2>Safe rollout</h2>
+  <p>Pushes to <code>main</code> go live straight away for the students using the site, so the new code has to work against the database as it is now and as it will be after the migration.</p>
+  <ul>
+    <li>At startup <code>db.js</code> probes for the <code>campuses</code> table. If it's missing, the app runs in <b>single-campus mode</b>: legacy <code>settings</code> row 1, any signed-in user is admin (as today), and no lecturer or announcement tabs. Admin shows a banner pointing to the migration file.</li>
+    <li>Migrations are idempotent (<code>if not exists</code>, policies dropped before they're recreated), so running one twice is harmless.</li>
+    <li>Someone with Supabase dashboard access runs each file once in the SQL editor. The app can't do it, because it only holds the public anon key.</li>
+  </ul>
+<pre class="mermaid">
+sequenceDiagram
+  participant App
+  participant DB as Supabase
+  App->>DB: select id from campuses limit 1
+  alt table exists
+    DB-->>App: rows
+    App->>App: multi-campus mode, roles from staff
+  else 404 / relation missing
+    DB-->>App: error
+    App->>App: single-campus mode (today's behaviour)
+  end
+  App->>DB: load faculties, programmes, modules, exams for campus
+</pre>
+</section>
+
+<section id="native">
+  <h2>Native features</h2>
+  <h3>Class reminders that fire when the app is closed</h3>
+  <ul>
+    <li><code>@capacitor/local-notifications</code> sets up one weekly repeating notification per class session, using <code>schedule.on {weekday, hour, minute}</code> and <code>allowWhileIdle</code>, at the student's chosen lead time (5 to 60 minutes).</li>
+    <li>Tests and one-off notices get a single notification the evening before at 18:00, plus one at the lead time.</li>
+    <li>Reminders are rescheduled whenever the module list, lead time, campus, notices or semester changes. Everything pending is cancelled first, so nothing piles up.</li>
+    <li>iOS keeps at most 64 pending notifications, so the scheduler caps at 60 and fills them in order of soonest first.</li>
+    <li>Android declares <code>SCHEDULE_EXACT_ALARM</code> and uses a "Class reminders" channel. Android 13+ asks for notification permission the first time a student turns reminders on.</li>
+    <li>On the web, the current in-tab reminder stays as the fallback.</li>
+  </ul>
+  <h3>PDF export</h3>
+  <p>On native, the jsPDF output is written to the cache directory with <code>@capacitor/filesystem</code> and handed to the share sheet with <code>@capacitor/share</code>, so it can go to WhatsApp, Drive or Files. On the web it downloads as it does now.</p>
+  <h3>Offline open</h3>
+  <p>After each successful load, the student's own sessions, exams, notices and announcements are cached on the device. With no connection, the app opens on that cache and shows an "offline, last updated …" note.</p>
+  <h3>Shell polish</h3>
+  <p>Android's back button returns to My Timetable before leaving the app. The status bar takes the brand colour, the splash screen hides after the first render, and icons and splash images come from <code>@capacitor/assets</code>.</p>
+</section>
+
+<section id="features">
+  <h2>Feature specs</h2>
+  <h3>Search fix</h3>
+  <p>Search is limited to the student's campus. By default it searches only the chosen course, and a toggle widens it to "all courses on this campus" for electives. Each result shows its course name, and the same module code is never listed twice.</p>
+  <h3>Multi-campus</h3>
+  <p>Students pick a campus on the sign-in screen, and it's saved to their record. Admins see only their own campus, and the class, exam and AI import tabs write <code>campus_id</code> automatically. A super admin gets a campus switcher. Faculties and courses are per campus.</p>
+  <h3>Lecturers tab</h3>
+  <p>A lecturer signs in and sees only their assigned module codes. For each code they can move a session for good (day, time, venue), or post a one-off notice: test, cancelled, moved, extra class or note. Students see these notices next to the class in their timetable and in a "Coming up" list.</p>
+  <h3>Announcements tab</h3>
+  <p>Students get an Announcements tab with campus and all-campus posts, pinned first, and expired posts hidden. Admins can create, pin, set an expiry and delete.</p>
+  <h3>Contact footer</h3>
+  <p>A footer gives the maintainer's contact email for queries, plus LinkedIn and Facebook links. The links live in <code>js/config.js</code>, and each one is hidden until its URL is filled in.</p>
+  <h3>Smaller fixes found during review</h3>
+  <ul>
+    <li>Realtime reloads are debounced so a bulk import causes a single reload.</li>
+    <li>Data loads are filtered by campus, so only that campus's rows are fetched.</li>
+  </ul>
+</section>
+
+<section id="release">
+  <h2>Build &amp; release</h2>
+  <div class="tbl"><table>
+    <thead><tr><th>Step</th><th>Android</th><th>iOS</th></tr></thead>
+    <tbody>
+      <tr><td>Generate native project</td><td>Linux, done in repo</td><td>Linux, done in repo (Swift Package Manager, no CocoaPods)</td></tr>
+      <tr><td>CI build on every push</td><td>GitHub Actions, ubuntu, JDK 21, <code>assembleDebug</code>, APK uploaded as an artifact</td><td>GitHub Actions, macOS, unsigned simulator build</td></tr>
+      <tr><td>Install for testers</td><td>Sideload the debug APK</td><td>TestFlight, which needs a signed build</td></tr>
+      <tr><td>Store account</td><td>Google Play Console, one-time US$25</td><td>Apple Developer Program, US$99 a year</td></tr>
+      <tr><td>Signing</td><td>Upload keystore, kept out of the repo</td><td>Needs a Mac or a cloud macOS runner with certificates</td></tr>
+      <tr><td>Store listing needs</td><td colspan="2">Privacy policy (the app stores student number and name), data-safety / privacy labels, screenshots, a support contact</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="plan">
+  <h2>Delivery plan</h2>
+  <p>This is the order of work. Each step is one or more small commits on <code>main</code>, and the site keeps working after every one.</p>
+  <ol class="steps">
+    <li><b>Project scaffolding</b><span>package.json, .gitignore, README with dev setup.</span></li>
+    <li><b>Split the monolith</b><span>CSS into css/app.css, JS into ES modules, no behaviour change.</span></li>
+    <li><b>Vendor libraries</b><span>supabase-js, jsPDF, autotable pinned in vendor/ so the app opens offline.</span></li>
+    <li><b>Quick fixes</b><span>Scoped search, debounced realtime.</span></li>
+    <li><b>Database migrations</b><span>001 campuses + roles + RLS, 002 announcements + class notices.</span></li>
+    <li><b>Multi-campus UI</b><span>Campus on sign-in, campus-scoped admin, super-admin switcher, staff management.</span></li>
+    <li><b>Lecturers + announcements + footer</b><span>Lecturer portal, notices in the timetable, announcements tab, contact footer.</span></li>
+    <li><b>Capacitor shell</b><span>Config, Android + iOS projects, platform adapter, icons and splash.</span></li>
+    <li><b>Native features</b><span>Scheduled reminders, PDF share, offline cache, back button.</span></li>
+    <li><b>CI</b><span>Android APK and iOS simulator builds on every push.</span></li>
+    <li><b>Verification</b><span>Browser UI tests against a fake Supabase (no writes to live data), local Android build.</span></li>
+  </ol>
+</section>
+
+<section id="risks">
+  <h2>Risks &amp; open items</h2>
+  <div class="callout crit">
+    <p><b>Student records are publicly readable and writable.</b> Students sign in with a student number and no password, so anyone with the anon key can read or change any student's record. That's tolerable for module lists, but app-store privacy reviews will ask about it. A fix means real student sign-in, for example a magic link to the university email. It's outside this plan.</p>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Item</th><th>Needed from</th></tr></thead>
+    <tbody>
+      <tr><td>Run <code>supabase/migrations/*.sql</code> in the Supabase SQL editor. Check Authentication → Users first, because every account there becomes super admin.</td><td class="owner">Supabase project owner</td></tr>
+      <tr><td>LinkedIn and Facebook URLs for the footer. The contact email is already known.</td><td class="owner">Lwandile</td></tr>
+      <tr><td>Campus admin and lecturer accounts for Luyengo and Mbabane</td><td class="owner">Super admin</td></tr>
+      <tr><td>Google Play and Apple developer accounts, signing keys</td><td class="owner">Repo owner</td></tr>
+      <tr><td>Approve the app ID <code>io.github.alexos01.uneswatimetable</code>. It avoids the universityApprove the app ID <code>sz.ac.uneswa.timetable</code>. Changing it after a store release isn't possible.rsquo;s own domain, since this isnApprove the app ID <code>sz.ac.uneswa.timetable</code>. Changing it after a store release isn't possible.rsquo;t an official UNESWA app, and it canApprove the app ID <code>sz.ac.uneswa.timetable</code>. Changing it after a store release isn't possible.rsquo;t be changed after a store release.</td><td class="owner">Repo owner</td></tr>
+      <tr><td>GitHub Actions workflow pushes need a token with the <code>workflow</code> scope</td><td class="owner">Whoever pushes</td></tr>
+      <tr><td>The AI import keys stay in the admin's browser storage. That's fine for one admin, but each campus admin will need their own key.</td><td class="owner">Campus admins</td></tr>
+    </tbody>
+  </table></div>
+</section>
+</article>
+</div>
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'neutral', securityLevel: 'strict' });
+</script>
+</body>
+</html>
