@@ -4,7 +4,7 @@ export const state = {
   meta:{semester:"Not set yet", updated_at:null, semester_version:1},
   isAdmin:false, adminSession:null,
   currentStudentId:null, currentStudent:null, resetNotice:false,
-  pickFaculty:'', pickProgramme:'', pickYear:'',
+  pickFaculty:'', pickProgramme:'', pickYear:'', searchQuery:'', searchAllCourses:false,
   notif:{enabled:false, minutesBefore:15},
   tab:'student', adminTab:'faculties',
   aiImportFaculty:'', aiImportProgramme:'', aiImportKind:'modules', aiPages:[], aiPending:[], aiStatus:'', aiDebugRaw:[], aiPasteText:'',

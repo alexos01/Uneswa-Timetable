@@ -4,6 +4,7 @@ import { exportPdf } from '../pdf.js';
 import { render } from '../render.js';
 import { facName, moduleYear, progName, programmesInFaculty, state, yearLabel } from '../state.js';
 import { esc, toast } from '../util.js';
+import { searchModules } from '../lib/modules.js';
 
 /* ================= STUDENT VIEW ================= */
 export function myModules(student){ return state.modules.filter(m => (student.module_ids||[]).includes(m.id)); }
@@ -103,7 +104,8 @@ export function renderStudent(){
       <div class="field"><label><span class="stepnum">4</span>Modules on this course</label></div>
       <div class="modlist" id="modList"></div>
       <div class="divider"></div>
-      <div class="field"><label>Or search any module code (electives)</label><input id="modSearch" placeholder="e.g. ACF411"></div>
+      <div class="field"><label>Search by module code</label><input id="modSearch" value="${esc(state.searchQuery)}" placeholder="e.g. CSC211"></div>
+      <label class="row searchscope"><input type="checkbox" id="searchAll" ${state.searchAllCourses?'checked':''}> Include other courses (electives)</label>
       <div class="modlist" id="searchList" style="max-height:200px;"></div>
     </div>
     <div class="card">
@@ -136,12 +138,14 @@ export function renderStudent(){
       yearSel.innerHTML = `<option value="">All years</option>` + years.map(y=>`<option value="${y}" ${String(state.pickYear)===String(y)?'selected':''}>${yearLabel(y)}</option>`).join('');
     }
     facSel.onchange = e=>{ state.pickFaculty = e.target.value; state.pickProgramme=''; state.pickYear=''; refreshProgOptions(); refreshYearOptions(); renderProgModList(student); };
-    progSel.onchange = e=>{ state.pickProgramme = e.target.value; state.pickYear=''; refreshYearOptions(); renderProgModList(student); };
+    progSel.onchange = e=>{ state.pickProgramme = e.target.value; state.pickYear=''; refreshYearOptions(); renderProgModList(student); renderSearchList(student, state.searchQuery); };
     yearSel.onchange = e=>{ state.pickYear = e.target.value; renderProgModList(student); };
     refreshProgOptions();
     refreshYearOptions();
     renderProgModList(student);
     document.getElementById('modSearch').oninput = e=>renderSearchList(student, e.target.value);
+    document.getElementById('searchAll').onchange = e=>{ state.searchAllCourses = e.target.checked; renderSearchList(student, state.searchQuery); };
+    if(state.searchQuery) renderSearchList(student, state.searchQuery);
     const nt=document.getElementById('notifToggle');
     nt.onchange = async (e)=>{
       state.notif.enabled = e.target.checked;
@@ -200,21 +204,21 @@ export function renderProgModList(student){
 }
 export function renderSearchList(student, q){
   const el = document.getElementById('searchList');
-  q=(q||'').trim().toLowerCase();
-  if(!q){ el.innerHTML=''; return; }
-  const mods = state.modules.filter(m=>m.code.toLowerCase().includes(q));
-  const groups = groupModulesByCode(mods);
-  const codes = Object.keys(groups).sort().slice(0,40);
-  el.innerHTML = codes.map(code=>{
-    const sessions = groups[code].slice().sort((a,b)=> DAYS.indexOf(a.day)-DAYS.indexOf(b.day) || a.start_time.localeCompare(b.start_time));
-    const ids = sessions.map(s=>s.id);
+  if(!el) return;
+  state.searchQuery = q||'';
+  const results = searchModules(state.modules, q, { programmeId: state.pickProgramme, allCourses: state.searchAllCourses });
+  if(!(q||'').trim()){ el.innerHTML=''; return; }
+  const scopeNote = state.pickProgramme && !state.searchAllCourses
+    ? `No match in ${esc(progName(state.pickProgramme))}. Tick “Include other courses” to search electives.`
+    : 'No matches.';
+  el.innerHTML = results.map(g=>{
+    const ids = g.sessions.map(s=>s.id);
     const checked = ids.some(id=>(student.module_ids||[]).includes(id));
-    const progNames = [...new Set(sessions.map(s=>progName(s.programme_id)))].join(', ');
-    const summary = sessions.map(s=>`${s.day.slice(0,3)} ${s.start_time}–${s.end_time||''} · ${s.venue||'TBC'}`).join(' · ');
+    const summary = g.sessions.map(s=>`${s.day.slice(0,3)} ${s.start_time}–${s.end_time||''} · ${s.venue||'TBC'}`).join(' · ');
     return `<label class="modrow"><input type="checkbox" data-ids="${ids.join(',')}" ${checked?'checked':''}>
-      <div><div class="code">${esc(code)} <span class="muted">· ${esc(progNames)}</span></div>
+      <div><div class="code">${esc(g.code)} <span class="muted">· ${esc(progName(g.programme_id))}</span></div>
       <div class="meta">${esc(summary)}</div></div></label>`;
-  }).join('') || `<div class="empty-state">No matches.</div>`;
+  }).join('') || `<div class="empty-state">${scopeNote}</div>`;
   el.querySelectorAll('input[type=checkbox]').forEach(cb=>{
     cb.onchange = e=>toggleModuleGroup(student, e.target.getAttribute('data-ids').split(','), e.target.checked);
   });

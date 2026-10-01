@@ -99,3 +99,4 @@ textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;
 .warnbox{background:var(--terracotta-soft);color:var(--terracotta);border-radius:9px;padding:11px 13px;font-size:12.5px;margin-bottom:13px;}
 .infobox{background:#E6EEE4;color:var(--forest-deep);border-radius:9px;padding:11px 13px;font-size:12.5px;margin-bottom:13px;}
 .divider{height:1px;background:var(--line);margin:20px 0;}
+.searchscope{font-size:13px;margin:-4px 0 6px;color:var(--ink-soft);}

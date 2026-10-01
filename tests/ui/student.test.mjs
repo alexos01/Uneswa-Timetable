@@ -42,3 +42,20 @@ test('timetable exports as a PDF', async ()=>{
   assert.match(download.suggestedFilename(), /Test-Student-timetable\.pdf/);
   assert.deepEqual(errors, []);
 });
+
+test('search is scoped to the chosen course, electives only when asked', async ()=>{
+  const { page, errors } = await openApp(browser, server.url, legacySeed());
+  await signIn(page);
+  await page.selectOption('#facSel', ids.FAC_SCI);
+  await page.selectOption('#progSel', ids.BSC_CS);
+  await page.fill('#modSearch', 'CSC111');
+  assert.equal(await page.locator('#searchList .modrow').count(), 1, 'only the chosen course');
+  await page.check('#searchAll');
+  const rows = page.locator('#searchList .modrow');
+  assert.equal(await rows.count(), 2, 'one row per course');
+  await rows.filter({ hasText:'Bachelor of Commerce' }).locator('input').check();
+  await page.waitForFunction(()=>window.__FAKE_TABLES__.students[0]?.module_ids?.length === 1);
+  assert.deepEqual((await tables(page)).students[0].module_ids, ['m6'], 'no sessions from other streams');
+  assert.equal(await page.inputValue('#modSearch'), 'CSC111', 'query survives the re-render');
+  assert.deepEqual(errors, []);
+});
