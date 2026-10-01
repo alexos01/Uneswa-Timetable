@@ -1,5 +1,6 @@
 import { DAYS, HOURS } from '../config.js';
-import { checkSemesterReset, fetchStudent, saveStudent } from '../db.js';
+import { checkSemesterReset, fetchStudent, saveStudent, ensureCampus } from '../db.js';
+import { renderNoticeList } from './notices.js';
 import { exportPdf } from '../pdf.js';
 import { render } from '../render.js';
 import { facName, moduleYear, progName, programmesInFaculty, state, yearLabel } from '../state.js';
@@ -32,6 +33,7 @@ export function renderStudentGate(){
     <h2 style="justify-content:center;"><span class="htitle">Find your timetable</span></h2>
     <div class="field"><label>Student number</label><input id="gateId" placeholder="e.g. 202100123"></div>
     <div class="field"><label>Your name</label><input id="gateName" placeholder="e.g. Nomvula Dlamini"></div>
+    ${state.caps.campuses ? `<div class="field"><label for="gateCampus">Campus</label><select id="gateCampus">${state.campuses.map(c=>`<option value="${esc(c.id)}" ${c.id===state.campusId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>` : ''}
     <button class="btn terracotta" id="gateGo" style="width:100%;">Continue</button>
     <div class="muted" style="margin-top:10px;">Your module choices are saved to your student number so you can pick up where you left off.</div>
   </div>`;
@@ -41,12 +43,19 @@ export function renderStudentGate(){
       const name = document.getElementById('gateName').value.trim();
       if(!id){ toast('Enter your student number'); return; }
       document.getElementById('gateGo').disabled = true;
-      let student = await fetchStudent(id);
+      let student;
+      try{ student = await fetchStudent(id); }
+      catch(err){ toast('Could not reach the server — check your connection'); document.getElementById('gateGo').disabled = false; return; }
+      const campusSel = document.getElementById('gateCampus');
+      const campus = campusSel ? campusSel.value : null;
+      if(campus) await ensureCampus(campus);
       if(!student){ student = { id, name, programme_id:null, module_ids:[], semester_version: state.meta.semester_version, updated_at:new Date().toISOString(), history:[] }; }
       else if(name) student.name = name;
+      if(campus) student.campus_id = campus;
       const wasReset = checkSemesterReset(student);
       const saved = await saveStudent(student);
       if(saved){ state.currentStudentId = id; localStorage.setItem('uneswa_last_student', id); state.resetNotice = wasReset; }
+      document.dispatchEvent(new CustomEvent('timetable:changed'));
       render();
     };
   },0);
@@ -69,9 +78,22 @@ export function renderStudent(){
   const idbar=document.createElement('div');
   idbar.className='row'; idbar.style.marginBottom='14px'; idbar.style.justifyContent='space-between';
   idbar.innerHTML = `<span class="muted">Signed in as <b>${esc(student.name||student.id)}</b> (${esc(student.id)})</span>
-    <button class="btn small secondary" id="switchStudentBtn">Switch student</button>`;
+    <span class="row">${state.caps.campuses ? `<label class="campusswitch">Campus <select id="studentCampusSel">${state.campuses.map(c=>`<option value="${esc(c.id)}" ${c.id===state.campusId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>` : ''}
+    <button class="btn small secondary" id="switchStudentBtn">Switch student</button></span>`;
   wrap.appendChild(idbar);
-  setTimeout(()=>{ document.getElementById('switchStudentBtn').onclick=()=>{ state.currentStudentId=null; state.currentStudent=null; localStorage.removeItem('uneswa_last_student'); render(); }; },0);
+  setTimeout(()=>{
+    const csel = document.getElementById('studentCampusSel');
+    if(csel) csel.onchange = async e=>{
+      if(!confirm('Switching campus starts a new module list for that campus. Continue?')){ e.target.value = state.campusId; return; }
+      await ensureCampus(e.target.value);
+      student.campus_id = e.target.value;
+      checkSemesterReset(student);
+      student.module_ids = [];
+      await saveStudent(student);
+      document.dispatchEvent(new CustomEvent('timetable:changed'));
+      render();
+    };
+    document.getElementById('switchStudentBtn').onclick=()=>{ state.currentStudentId=null; state.currentStudent=null; localStorage.removeItem('uneswa_last_student'); render(); }; },0);
 
   const nc = nextClass(student);
   const banner=document.createElement('div');
@@ -119,6 +141,10 @@ export function renderStudent(){
 
   const right=document.createElement('div');
   right.appendChild(renderMyCourses(student));
+  if(state.caps.notices){
+    const codes = [...new Set(myModules(student).map(m=>m.code))];
+    right.appendChild(renderNoticeList(codes, { title:'Coming up: tests and class changes' }));
+  }
   right.appendChild(renderWeekGrid(student));
   right.appendChild(renderExamsCard(student));
   grid2.appendChild(right);
@@ -177,6 +203,7 @@ export async function toggleModuleGroup(student, ids, checked){
   student.semester_version = state.meta.semester_version;
   student.updated_at = new Date().toISOString();
   await saveStudent(student);
+  document.dispatchEvent(new CustomEvent('timetable:changed'));
   render();
 }
 

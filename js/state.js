@@ -2,7 +2,8 @@
 export const state = {
   faculties:[], programmes:[], modules:[], exams:[],
   meta:{semester:"Not set yet", updated_at:null, semester_version:1},
-  isAdmin:false, adminSession:null,
+  caps:{ campuses:false, notices:false }, campuses:[], campusId:'',
+  session:null, staff:null, announcements:[], notices:[], loadedAt:null, offline:false,
   currentStudentId:null, currentStudent:null, resetNotice:false,
   pickFaculty:'', pickProgramme:'', pickYear:'', searchQuery:'', searchAllCourses:false,
   notif:{enabled:false, minutesBefore:15},

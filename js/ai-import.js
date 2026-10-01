@@ -1,5 +1,5 @@
 import { SLOTS } from './config.js';
-import { sb } from './db.js';
+import { sb, withCampus } from './db.js';
 import { render } from './render.js';
 import { state } from './state.js';
 import { esc, toast } from './util.js';
@@ -289,8 +289,8 @@ export function renderAiImport(){
       let added=0;
       for(const p of toAdd){
         const programme_id = await resolveProgrammeId(p.programme, p.faculty);
-        const entry = isMod ? {code:p.code, day:p.day, start_time:p.start, end_time:p.end, venue:p.venue, programme_id}
-                             : {code:p.code, exam_date:p.date, start_time:p.start, end_time:p.end, venue:p.venue, programme_id};
+        const entry = withCampus(isMod ? {code:p.code, day:p.day, start_time:p.start, end_time:p.end, venue:p.venue, programme_id}
+                             : {code:p.code, exam_date:p.date, start_time:p.start, end_time:p.end, venue:p.venue, programme_id});
         const { error } = await sb.from(isMod?'modules':'exams').insert(entry);
         if(!error) added++;
       }

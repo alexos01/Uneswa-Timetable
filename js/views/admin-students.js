@@ -1,11 +1,15 @@
 import { DAYS } from '../config.js';
 import { fetchAllRows, sb } from '../db.js';
 import { progName, state } from '../state.js';
-import { esc } from '../util.js';
+import { esc, toast } from '../util.js';
 import { groupModulesByCode } from './student.js';
 
 /* ---------------- Students directory ---------------- */
-export async function loadStudentsList(){ state.students = await fetchAllRows('students', 'updated_at', false); }
+export async function loadStudentsList(){
+  const byCampus = state.caps.campuses ? (q=>q.eq('campus_id', state.campusId)) : null;
+  try{ state.students = await fetchAllRows('students', 'updated_at', false, byCampus); }
+  catch(err){ state.students = []; toast('Could not load students: '+err.message); }
+}
 
 export function renderAdminStudents(){
   const card=document.createElement('div'); card.className='card';

@@ -1,4 +1,4 @@
-import { sb } from '../db.js';
+import { sb, withCampus, scoped } from '../db.js';
 import { progName, state } from '../state.js';
 import { esc, toast } from '../util.js';
 
@@ -11,10 +11,10 @@ export async function resolveProgrammeId(name, facultyName){
   if(facultyName){
     const fname = facultyName.trim();
     let fac = state.faculties.find(f=>f.name.toLowerCase()===fname.toLowerCase());
-    if(!fac){ const {data} = await sb.from('faculties').insert({name:fname}).select().single(); fac=data; state.faculties.push(fac); }
+    if(!fac){ const {data} = await sb.from('faculties').insert(withCampus({name:fname})).select().single(); fac=data; state.faculties.push(fac); }
     if(fac) faculty_id = fac.id;
   }
-  const { data, error } = await sb.from('programmes').insert({name, faculty_id}).select().single();
+  const { data, error } = await sb.from('programmes').insert(withCampus({name, faculty_id})).select().single();
   if(error){ console.error(error); return null; }
   state.programmes.push(data);
   return data.id;
@@ -61,7 +61,7 @@ export function renderAdminEntries(kind){
     if(deleteAllBtn) deleteAllBtn.onclick = async ()=>{
       if(!confirm(`Delete all ${list.length} ${isMod?'class':'exam'} entries? This cannot be undone.`)) return;
       deleteAllBtn.disabled = true; deleteAllBtn.textContent = 'Deleting…';
-      const { error } = await sb.from(isMod?'modules':'exams').delete().neq('id','00000000-0000-0000-0000-000000000000');
+      const { error } = await scoped(sb.from(isMod?'modules':'exams').delete().neq('id','00000000-0000-0000-0000-000000000000'));
       if(error){ console.error(error); toast('Delete failed — see console'); deleteAllBtn.disabled=false; }
       else toast('All entries deleted');
     };
@@ -97,8 +97,8 @@ export function renderAdminEntries(kind){
         let duplicates = 0;
         for(const p of parsed){
           const row = isMod
-            ? { code:p.code, day:p.a, start_time:p.start, end_time:p.end, venue:p.venue, programme_id: progIdMap[p.prog] }
-            : { code:p.code, exam_date:p.a, start_time:p.start, end_time:p.end, venue:p.venue, programme_id: progIdMap[p.prog] };
+            ? withCampus({ code:p.code, day:p.a, start_time:p.start, end_time:p.end, venue:p.venue, programme_id: progIdMap[p.prog] })
+            : withCampus({ code:p.code, exam_date:p.a, start_time:p.start, end_time:p.end, venue:p.venue, programme_id: progIdMap[p.prog] });
           const k = dedupeKey(row);
           if(seen.has(k)){ duplicates++; continue; }
           seen.add(k); rows.push(row);
