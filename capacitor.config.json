@@ -1,0 +1,22 @@
+{
+  "appId": "io.github.alexos01.uneswatimetable",
+  "appName": "UNESWA Timetable",
+  "webDir": "www",
+  "backgroundColor": "#FAF6EE",
+  "android": {
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": false,
+      "launchShowDuration": 3000,
+      "backgroundColor": "#1F3D2E",
+      "showSpinner": false,
+      "androidScaleType": "CENTER_CROP"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_notify",
+      "iconColor": "#1F3D2E"
+    }
+  }
+}
