@@ -13,5 +13,8 @@
     "ios": "npm run sync && npx cap open ios",
     "test": "node --test tests/unit",
     "test:ui": "node tests/ui/run.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.63.0"
   }
 }
