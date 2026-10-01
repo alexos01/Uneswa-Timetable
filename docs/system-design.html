@@ -95,7 +95,8 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 <nav class="toc" aria-label="Contents">
   <div class="lbl">Contents</div>
   <a href="#summary">Summary</a>
-  <a href="#today">Where it stands</a>
+  <a href="#status">Status</a>
+  <a href="#today">Where it started</a>
   <a href="#architecture">Architecture</a>
   <a href="#layout">Repo layout</a>
   <a href="#data">Data model</a>
@@ -110,7 +111,7 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 
 <article>
 <header class="doc">
-  <div class="eyebrow">System design · v1</div>
+  <div class="eyebrow">System design · v1.1 · updated 1 Oct 2026</div>
   <h1>UNESWA Timetable for Android &amp; iOS</h1>
   <p class="lede">Turning the web timetable students already use into installable Android and iPhone apps. Class reminders fire even when the app is closed, and the app gains multi-campus admin, lecturers and announcements.</p>
   <div class="meta"><span>Repo: alexos01/Uneswa-Timetable</span><span>Branch: main</span><span>Drafted 1 Oct 2026</span></div>
@@ -127,8 +128,27 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
   </div>
 </section>
 
+<section id="status">
+  <h2>Status on 1 Oct 2026</h2>
+  <p>Everything in the delivery plan is on <code>main</code>. The live site runs the new code in single-campus mode until the migrations are run.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Item</th><th>State</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Unit tests (search, reminders, notices)</td><td><span class="chip yes">12 passing</span></td><td><code>npm test</code>, locally and in CI</td></tr>
+      <tr><td>UI tests against an in-memory Supabase</td><td><span class="chip yes">14 passing</span></td><td><code>npm run test:ui</code>, locally and in CI</td></tr>
+      <tr><td>Migrations + RLS rules on Postgres 16</td><td><span class="chip yes">40 checks passing</span></td><td><code>npm run test:db</code>, applied twice to prove idempotency</td></tr>
+      <tr><td>Android debug APK</td><td><span class="chip yes">builds in CI</span></td><td>Artifact <code>uneswa-timetable-debug-apk</code> on each Actions run</td></tr>
+      <tr><td>iOS simulator build</td><td><span class="chip yes">builds in CI</span></td><td>Unsigned, macOS runner</td></tr>
+      <tr><td>Live site after the push</td><td><span class="chip yes">loads</span></td><td>Checked against the real database: single-campus mode, student sign-in screen shows</td></tr>
+      <tr><td>Reminders and PDF sharing on a real phone</td><td><span class="chip part">not yet tested</span></td><td>Needs the APK installed on a device. Emulators and CI can't confirm notification delivery.</td></tr>
+      <tr><td>Migrations on the live project</td><td><span class="chip part">not run</span></td><td>Needs dashboard access; see Risks</td></tr>
+      <tr><td>Store releases</td><td><span class="chip no">not started</span></td><td>Needs developer accounts and signing keys</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
 <section id="today">
-  <h2>Where it stands today</h2>
+  <h2>Where it started</h2>
   <p>One file, <code>index.html</code> (about 1,560 lines), holds the whole app. It uses vanilla JavaScript that renders with template strings, supabase-js, jsPDF from a CDN, and an AI import panel that brings its own key for Anthropic, Gemini, OpenRouter or Ollama. GitHub Pages serves it straight from the root of <code>main</code>.</p>
   <div class="facts">
     <div class="fact"><div class="n">2,954</div><div class="l">class sessions loaded</div></div>
@@ -171,23 +191,24 @@ flowchart LR
 </section>
 
 <section id="layout">
-  <h2>Repo layout after the restructure</h2>
-<pre class="block">index.html                 app shell, shared by web and native
-css/app.css                styles pulled out of index.html
+  <h2>Repo layout</h2>
+<pre class="block">index.html  manifest.webmanifest   app shell, shared by web and native
+css/app.css
 js/
-  main.js                  boot: config gate, load, realtime, first render
-  config.js                Supabase URL + anon key, campuses, contact links
-  state.js  util.js        shared state, escaping, toasts, time helpers
-  db.js                    all Supabase reads/writes + capability detection
-  platform.js              web vs native: notifications, PDF share, back button
-  reminders.js  pdf.js     scheduling logic, timetable PDF
-  views/                   student, admin, lecturer, announcements, footer …
-vendor/                    pinned supabase-js, jsPDF, autotable (works offline)
-supabase/migrations/       numbered SQL, run once in the SQL editor
-capacitor.config.json  package.json  scripts/build-www.mjs
-android/  ios/             generated native projects, committed
-resources/                 icon + splash sources for @capacitor/assets
-.github/workflows/         Android APK + iOS simulator build on every push</pre>
+  main.js                start-up: capability check, load, realtime, first render
+  config.js              Supabase URL + anon key, default campus, contact links
+  state.js  util.js      shared state, escaping, toasts
+  db.js                  Supabase reads/writes, campus scoping, staff roles
+  platform.js            web vs native: notifications, PDF share, back button
+  reminders.js cache.js  reminder scheduling, offline snapshot
+  lib/                   pure logic: search, reminder plan, notices (unit tested)
+  views/                 student, announcements, staff, admin tabs, lecturer portal
+vendor/                  pinned supabase-js, jsPDF, autotable, @capacitor/core
+supabase/migrations/     001 campuses + roles + RLS, 002 announcements + notices
+assets/  icons/          icon + splash sources (SVG) and rendered PNGs
+android/  ios/           native projects, committed
+tests/unit  tests/ui  tests/db
+.github/workflows/       tests, Android APK, iOS simulator build</pre>
 </section>
 
 <section id="data">
@@ -342,7 +363,7 @@ sequenceDiagram
     <li><b>Capacitor shell</b><span>Config, Android + iOS projects, platform adapter, icons and splash.</span></li>
     <li><b>Native features</b><span>Scheduled reminders, PDF share, offline cache, back button.</span></li>
     <li><b>CI</b><span>Android APK and iOS simulator builds on every push.</span></li>
-    <li><b>Verification</b><span>Browser UI tests against a fake Supabase (no writes to live data), local Android build.</span></li>
+    <li><b>Verification</b><span>Browser UI tests against a fake Supabase (no writes to live data), migrations tested on Postgres, Android and iOS builds in CI.</span></li>
   </ol>
 </section>
 
@@ -358,8 +379,8 @@ sequenceDiagram
       <tr><td>LinkedIn and Facebook URLs for the footer. The contact email is already known.</td><td class="owner">Lwandile</td></tr>
       <tr><td>Campus admin and lecturer accounts for Luyengo and Mbabane</td><td class="owner">Super admin</td></tr>
       <tr><td>Google Play and Apple developer accounts, signing keys</td><td class="owner">Repo owner</td></tr>
-      <tr><td>Approve the app ID <code>io.github.alexos01.uneswatimetable</code>. It avoids the universityApprove the app ID <code>sz.ac.uneswa.timetable</code>. Changing it after a store release isn't possible.rsquo;s own domain, since this isnApprove the app ID <code>sz.ac.uneswa.timetable</code>. Changing it after a store release isn't possible.rsquo;t an official UNESWA app, and it canApprove the app ID <code>sz.ac.uneswa.timetable</code>. Changing it after a store release isn't possible.rsquo;t be changed after a store release.</td><td class="owner">Repo owner</td></tr>
-      <tr><td>GitHub Actions workflow pushes need a token with the <code>workflow</code> scope</td><td class="owner">Whoever pushes</td></tr>
+      <tr><td>Confirm the app ID <code>io.github.alexos01.uneswatimetable</code>, which both native projects use now. It avoids the university&rsquo;s own domain because this isn&rsquo;t an official UNESWA app, and it can&rsquo;t change after the first store release.</td><td class="owner">Repo owner</td></tr>
+      <tr><td>The footer says the app is student-built and not an official university service. Keep or reword it.</td><td class="owner">Lwandile</td></tr>
       <tr><td>The AI import keys stay in the admin's browser storage. That's fine for one admin, but each campus admin will need their own key.</td><td class="owner">Campus admins</td></tr>
     </tbody>
   </table></div>
