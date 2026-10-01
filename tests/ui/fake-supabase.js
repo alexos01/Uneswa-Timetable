@@ -8,7 +8,16 @@
   const seed = window.__FAKE_DB__ || {};
   const tables = seed.tables || {};
   const users = seed.users || [];            // [{id, email, password}]
-  const rpcs = seed.rpcs || {};              // name -> (args, ctx) => {data, error}
+  // RPCs implemented in the browser (seed data arrives as JSON, so it cannot carry functions).
+  const rpcs = {
+    grant_staff_role(args, ctx){
+      const u = ctx.users.find(x=>x.email===args.p_email);
+      if(!u) return { data:null, error:{ message:`No account uses ${args.p_email}. Ask them to create one under Staff sign in first.` } };
+      const row = { user_id:u.id, role:args.p_role, campus_id: args.p_role==='super_admin' ? null : args.p_campus, email:args.p_email, display_name:args.p_name };
+      ctx.tables.staff = ctx.tables.staff.filter(x=>x.user_id!==u.id); ctx.tables.staff.push(row);
+      return { data:row, error:null };
+    },
+  };
   const listeners = [];
   const authListeners = [];
   let session = null;
