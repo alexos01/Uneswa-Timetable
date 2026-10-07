@@ -17,6 +17,6 @@ export const DEFAULT_CAMPUS = "kwaluseni";
 export const CONTACT = {
   name: "Lwandile Dlamini",
   email: "dlaminilwandile2005@gmail.com",
-  linkedin: "",
-  facebook: "",
+  linkedin: "www.linkedin.com/in/lwandile-dlamini-4a1987274",
+  facebook: "https://www.facebook.com/share/19djwTDnG3/",
 };
