@@ -36,7 +36,7 @@ test('lecturer posts "running 20 min late"; the class time and venue fill in', a
   await page.waitForFunction(()=>window.__FAKE_TABLES__.class_notices.some(n=>n.kind==='late'));
   const n = (await tables(page)).class_notices.find(x=>x.kind==='late');
   assert.equal(n.delay_minutes, 20); assert.equal(n.notice_date, '2026-10-19'); assert.equal(n.start_time, '08:00');
-  assert.match(await page.textContent('#main'), /CSC111 · Running 20 min late/);
+  await page.waitForSelector('text=CSC111 · Running 20 min late'); // the page redraws after posting
   await page.selectOption('#ntKind', 'test');
   assert.equal(await page.isVisible('#ntDelay'), false, 'delay only for late');
   assert.deepEqual(errors, []);

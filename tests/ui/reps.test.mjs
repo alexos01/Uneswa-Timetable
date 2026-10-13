@@ -40,6 +40,7 @@ test('campus admin makes someone a class rep and assigns a module', async ()=>{
   await page.click('[data-assign="u-new"]');
   await page.waitForFunction(()=>window.__FAKE_TABLES__.lecturer_modules.some(r=>r.user_id==='u-new' && r.code==='CSC211'));
   assert.equal((await tables(page)).staff.find(s=>s.user_id==='u-new').role, 'class_rep');
+  await page.waitForSelector('[data-unassign="u-new|CSC211"]'); // the list redraws after assigning
   assert.equal(await page.locator('[data-remove="u-new"]').count(), 1, 'a campus admin can remove a class rep');
   assert.deepEqual(errors, []);
 });
@@ -70,6 +71,7 @@ test('class rep signs in on their tab, posts a late notice and a class announcem
   await page.selectOption('#ntDelay', '10');
   await page.click('#ntPost');
   await page.waitForFunction(()=>window.__FAKE_TABLES__.class_notices.some(n=>n.kind==='late' && n.code==='CSC211'));
+  await page.waitForSelector('text=CSC211 · Running 10 min late'); // the page redraws after posting
 
   assert.deepEqual(await page.locator('#caCourse option').allTextContents(), ['B.Sc. Computer Science']);
   assert.equal(await page.inputValue('#caYear'), '2', 'the only year their modules cover');
@@ -122,6 +124,5 @@ test('on a phone the tabs scroll instead of squashing', async ()=>{
   const fits = await page.evaluate(()=>[...document.querySelectorAll('#tabs button')].every(b=>b.scrollWidth <= b.clientWidth + 1));
   assert.equal(fits, true, 'no tab label is cut off');
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth <= 375), true, 'no sideways page scroll');
-  await page.screenshot({ path: 'test-results/tabs-375.png' });
   assert.deepEqual(errors, []);
 });

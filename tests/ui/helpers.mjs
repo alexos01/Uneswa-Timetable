@@ -49,6 +49,8 @@ export async function openApp(browser, baseUrl, seed, { viewport={ width:1280, h
   }, [seed, localStorage]);
   if(initScript) await page.addInitScript(initScript);
   if(beforeLoad) await beforeLoad({ context, page });
+  // UI_CPU_SLOWDOWN=6 npm run test:ui runs the browser as slowly as a busy CI runner, to catch races.
+  if(process.env.UI_CPU_SLOWDOWN) await (await context.newCDPSession(page)).send('Emulation.setCPUThrottlingRate', { rate: Number(process.env.UI_CPU_SLOWDOWN) });
   if(fixedTime) await page.clock.setFixedTime(new Date(fixedTime)); // Date is frozen, timers still run
   await page.goto(baseUrl);
   await page.waitForFunction(()=>document.querySelector('#semesterLabel')?.textContent !== 'Loading…');
