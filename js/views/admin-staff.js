@@ -3,7 +3,8 @@ import { render } from '../render.js';
 import { state } from '../state.js';
 import { esc, toast } from '../util.js';
 
-const ROLE_LABEL = { super_admin:'Super admin', campus_admin:'Campus admin', lecturer:'Lecturer' };
+export const ROLE_LABEL = { super_admin:'Super admin', campus_admin:'Campus admin', lecturer:'Lecturer', class_rep:'Class rep' };
+const ASSIGNABLE = ['lecturer', 'class_rep']; // roles that get module codes
 
 /* ---------------- Staff & lecturers ----------------
    Staff create their own account (Staff sign in -> Create a staff account); an admin
@@ -19,25 +20,26 @@ export async function renderAdminStaff(){
   const staff = (st.data||[]).filter(s=>s.role==='super_admin' || s.campus_id===state.campusId);
   const assignments = lm.data || [];
   const codes = [...new Set(state.modules.map(m=>m.code))].sort();
-  const roles = isSuperAdmin() ? ['lecturer','campus_admin','super_admin'] : ['lecturer'];
+  const local = state.caps.v3 ? ['lecturer','class_rep'] : ['lecturer'];
+  const roles = isSuperAdmin() ? [...local, 'campus_admin','super_admin'] : local;
   const me = state.session.user.id;
 
   card.innerHTML = `<h2><span class="htitle">Staff &amp; lecturers · ${esc(campusName(state.campusId))}</span> <span class="pill">${staff.length}</span></h2>
-    <div class="infobox">Ask the person to open <b>Staff → Create a staff account</b> first. Then add their email here.</div>
+    <div class="infobox">Ask the person to open <b>Staff → Create a staff account</b> first. Then add their email here. Lecturers${state.caps.v3?' and class reps':''} can move and post notices only for the module codes you assign them${state.caps.v3?'; class reps can also post announcements to those modules\' courses':''}.</div>
     <div class="formgrid">
-      <div class="field"><label for="grEmail">Email</label><input id="grEmail" type="email" placeholder="lecturer@example.com"></div>
+      <div class="field"><label for="grEmail">Email</label><input id="grEmail" type="email" placeholder="name@example.com"></div>
       <div class="field"><label for="grName">Display name</label><input id="grName" placeholder="e.g. Dr N. Dlamini"></div>
       <div class="field"><label for="grRole">Role</label><select id="grRole">${roles.map(r=>`<option value="${r}">${ROLE_LABEL[r]}</option>`).join('')}</select></div>
     </div>
     <button class="btn" id="grBtn">Add to ${esc(campusName(state.campusId))}</button>
-    <div class="tablewrap" style="margin-top:16px;"><table class="admintbl"><thead><tr><th>Name</th><th>Role</th><th>Modules taught</th><th></th></tr></thead>
+    <div class="tablewrap" style="margin-top:16px;"><table class="admintbl"><thead><tr><th>Name</th><th>Role</th><th>Modules</th><th></th></tr></thead>
     <tbody>${staff.map(s=>{
       const mine = assignments.filter(a=>a.user_id===s.user_id).map(a=>a.code).sort();
-      const canRemove = s.user_id!==me && (isSuperAdmin() || s.role==='lecturer');
+      const canRemove = s.user_id!==me && (isSuperAdmin() || ASSIGNABLE.includes(s.role));
       return `<tr>
         <td><b>${esc(s.display_name || '—')}</b><div class="muted">${esc(s.email||'')}</div></td>
         <td>${esc(ROLE_LABEL[s.role]||s.role)}${s.role==='super_admin'?'<div class="muted">all campuses</div>':''}</td>
-        <td>${s.role==='lecturer' ? `${mine.map(c=>`<span class="modchip">${esc(c)} <button class="chipx" aria-label="Unassign ${esc(c)}" data-unassign="${esc(s.user_id)}|${esc(c)}">×</button></span>`).join('')}
+        <td>${ASSIGNABLE.includes(s.role) ? `${mine.map(c=>`<span class="modchip">${esc(c)} <button class="chipx" aria-label="Unassign ${esc(c)}" data-unassign="${esc(s.user_id)}|${esc(c)}">×</button></span>`).join('')}
             <div class="row" style="margin-top:6px;"><input list="codeList" data-assigninput="${esc(s.user_id)}" placeholder="Module code" style="width:120px;padding:5px;border:1px solid var(--line);border-radius:7px;">
             <button class="btn small secondary" data-assign="${esc(s.user_id)}">Assign</button></div>` : '<span class="muted">—</span>'}</td>
         <td>${canRemove?`<button class="btn small danger" data-remove="${esc(s.user_id)}">Remove</button>`:''}</td>

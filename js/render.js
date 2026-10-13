@@ -1,4 +1,4 @@
-import { sb, campusName, ensureCampus, isAdmin, isLecturer } from './db.js';
+import { sb, campusName, ensureCampus, isAdmin, isLecturer, isClassRep } from './db.js';
 import { state } from './state.js';
 import { esc } from './util.js';
 import { renderStaff } from './views/staff.js';
@@ -32,7 +32,7 @@ export async function setTab(t){
   state.tab = t;
   try{
     if(t==='student' && state.currentStudent?.campus_id) await ensureCampus(state.currentStudent.campus_id);
-    if(t==='staff' && state.staff?.campus_id && (isLecturer() || (isAdmin() && state.staff.role!=='super_admin'))) await ensureCampus(state.staff.campus_id);
+    if(t==='staff' && state.staff?.campus_id && (isLecturer() || isClassRep() || (isAdmin() && state.staff.role!=='super_admin'))) await ensureCampus(state.staff.campus_id);
   }catch(err){ console.error(err); }
   render();
 }

@@ -1,15 +1,16 @@
-import { sb, loadStaff, isAdmin, isLecturer, ensureCampus, campusName } from '../db.js';
+import { sb, loadStaff, isAdmin, isLecturer, isClassRep, ensureCampus, campusName } from '../db.js';
 import { render } from '../render.js';
 import { state } from '../state.js';
 import { esc, toast } from '../util.js';
 import { renderAdmin } from './admin.js';
+import { ROLE_LABEL } from './admin-staff.js';
 import { renderLecturer } from './lecturer.js';
 
 /* ================= STAFF: sign-in and role routing ================= */
 export function renderStaff(){
   if(!state.session) return renderSignIn();
   if(isAdmin()) return renderAdmin();
-  if(isLecturer()) return renderLecturer();
+  if(isLecturer() || isClassRep()) return renderLecturer();
   return renderNoRole();
 }
 
@@ -34,7 +35,7 @@ function renderSignIn(){
     <div class="field"><label for="adminPass">Password</label><input id="adminPass" type="password" autocomplete="current-password"></div>
     <button class="btn terracotta" id="adminGoBtn" style="width:100%;">Sign in</button>
     ${canSignUp ? `<button class="btn secondary" id="signUpBtn" style="width:100%;margin-top:8px;">Create a staff account</button>
-      <div class="muted" style="margin-top:10px;">Lecturers and campus admins: create an account, then ask your campus admin to give it a role.</div>`
+      <div class="muted" style="margin-top:10px;">Lecturers, class reps and campus admins: create an account, then ask your campus admin to give it a role.</div>`
       : `<div class="muted" style="margin-top:10px;">Create this login once in your Supabase dashboard under Authentication → Users.</div>`}
   </div>`;
   setTimeout(()=>{
@@ -78,7 +79,7 @@ function renderNoRole(){
 /** Header strip shared by the admin and lecturer views. */
 export function staffHeader(extraHtml=''){
   const s = state.staff;
-  const roleLabel = { super_admin:'Super admin', campus_admin:'Campus admin', lecturer:'Lecturer' }[s.role] || s.role;
+  const roleLabel = ROLE_LABEL[s.role] || s.role;
   const where = s.legacy ? '' : (s.role==='super_admin' ? 'all campuses' : campusName(s.campus_id));
   return `<div class="staffbar"><span class="muted">Signed in as <b>${esc(s.display_name || s.email || state.session.user.email)}</b>
       · ${esc(roleLabel)}${where ? ` · ${esc(where)}` : ''}</span>${extraHtml}

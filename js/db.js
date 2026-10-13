@@ -234,3 +234,4 @@ export async function loadStaff(session){
 export function isAdmin(){ return !!state.staff && (state.staff.role==='super_admin' || state.staff.role==='campus_admin'); }
 export function isSuperAdmin(){ return !!state.staff && state.staff.role==='super_admin'; }
 export function isLecturer(){ return !!state.staff && state.staff.role==='lecturer'; }
+export function isClassRep(){ return !!state.staff && state.staff.role==='class_rep'; }
