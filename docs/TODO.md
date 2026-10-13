@@ -9,9 +9,10 @@ Nothing else in this list works until this is done.
 - [ ] In the Supabase dashboard, open **Authentication → Users** and delete any test accounts. **Every account listed there becomes a super admin** when the migration runs.
 - [ ] Open **SQL Editor → New query**, paste [`supabase/migrations/001_campuses_and_roles.sql`](../supabase/migrations/001_campuses_and_roles.sql) and click **Run**.
 - [ ] In a new query, run [`supabase/migrations/002_announcements_and_notices.sql`](../supabase/migrations/002_announcements_and_notices.sql).
-- [ ] Reload the site. The header should now say **Kwaluseni campus**, and the top tabs should be **My Timetable · Announcements · Staff**.
+- [ ] In a new query, run [`supabase/migrations/003_class_reps_late_notices_push.sql`](../supabase/migrations/003_class_reps_late_notices_push.sql).
+- [ ] Reload the site. The header should now say **Kwaluseni campus**, and the top tabs should be **My Timetable · Announcements · Lecturer · Class rep · Staff**.
 
-Both files are safe to run again if something goes wrong halfway.
+All three files are safe to run again if something goes wrong halfway.
 
 ## 2. Send the missing details
 
@@ -31,15 +32,31 @@ CI proves the app builds, but only a real device can show that notifications arr
 - [ ] Turn on airplane mode, reopen the app, and check that your saved timetable still shows.
 - [ ] Press the Android back button from the Staff tab. It should go back to My Timetable instead of closing the app.
 
-## 4. Set up campuses and staff (after step 1)
+## 4. Test the web app offline
+
+- [ ] On an Android phone, open the site in Chrome and tap **Install app** in the header (or Chrome's menu → **Install app**). On an iPhone, use Safari's Share → **Add to Home Screen**.
+- [ ] Open it from the home screen, sign in as a student and tick a few modules.
+- [ ] Turn on airplane mode and reopen it. The timetable should show, with **offline** in the header.
+- [ ] Still offline, tick another module. The header should say **1 change waiting to sync**.
+- [ ] Turn airplane mode off. You should see **You're back online. Your changes are synced.**, and the module should still be ticked after a reload.
+
+## 5. Set up campuses and staff (after step 1)
 
 - [ ] Sign in under **Staff** with your existing admin login. You're now a super admin, and a campus switcher appears in the admin panel.
 - [ ] For **Luyengo** and **Mbabane**: ask each campus admin to open **Staff → Create a staff account**, then add their email under **Staff & lecturers** with the role *Campus admin*.
-- [ ] Upload the Luyengo and Mbabane timetables: switch campus, then use **Class timetable** or **AI Import**.
-- [ ] Add lecturers the same way with the role *Lecturer*, then assign their module codes so they can post tests and move sessions.
+- [ ] Upload the Luyengo and Mbabane timetables: switch campus, open **Class timetable**, click **Download CSV template**, fill it in Excel or Google Sheets, save as CSV and upload it. Use **AI Import** when all you have is the PDF.
+- [ ] Add lecturers the same way with the role *Lecturer*, then assign their module codes so they can post tests, mark a class as running late and move sessions. They work under the **Lecturer** tab.
+- [ ] Add class reps with the role *Class rep* and assign the modules for their class. Under the **Class rep** tab they can do what a lecturer can for those modules, and post announcements to their class.
 - [ ] Post a first announcement to check that students see it under **Announcements**.
 
-## 5. Decide
+## 6. Turn on push notifications for the web app (after step 1)
+
+Without this, browser reminders only arrive while the page is open. The phone app doesn't need it.
+
+- [ ] Follow [`supabase/functions/send-push/README.md`](../supabase/functions/send-push/README.md): make the VAPID keys, put the public one in `js/config.js`, set the secrets, deploy the function, and run its `setup.sql`.
+- [ ] Check it: as a student in desktop Chrome, turn on **Reminders** and close the tab. As a lecturer on another device, post **Running late** for one of that student's modules. A notification should arrive.
+
+## 7. Decide
 
 - [ ] **Student privacy.** Students sign in with a student number and no password, so anyone who knows a number can view or change that student's record. App-store privacy reviews will ask about this. Fixing it means real student sign-in, such as a magic link sent to the university email. Do we do that before a store release?
 - [ ] **Store release.** Google Play needs a Play Console account (one-off US$25) and an upload keystore. The App Store needs an Apple Developer membership (US$99 a year) and a Mac or cloud macOS runner for signing. Both stores need a privacy policy. Which store first, and who owns the accounts?
