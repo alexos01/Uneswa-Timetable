@@ -10,6 +10,9 @@
   const users = seed.users || [];            // [{id, email, password}]
   // RPCs implemented in the browser (seed data arrives as JSON, so it cannot carry functions).
   const rpcs = {
+    app_schema_version(){
+      return seed.schemaVersion ? { data: seed.schemaVersion, error:null } : { data:null, error:{ code:'PGRST202', message:'Could not find the function public.app_schema_version' } };
+    },
     grant_staff_role(args, ctx){
       const u = ctx.users.find(x=>x.email===args.p_email);
       if(!u) return { data:null, error:{ message:`No account uses ${args.p_email}. Ask them to create one under Staff sign in first.` } };
@@ -118,6 +121,7 @@
     from: t=>new Query(t),
     rpc: async (name, args)=>{
       window.__FAKE_LOG__.push({ rpc:name, args });
+      if(seed.failNetwork) return { data:null, error:{ message:'Failed to fetch' } };
       if(!rpcs[name]) return { data:null, error:{ code:'PGRST202', message:`Could not find the function public.${name}` } };
       return rpcs[name](args, { tables, users, uid: session && session.user.id });
     },

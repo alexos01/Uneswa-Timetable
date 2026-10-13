@@ -58,7 +58,7 @@ export function nextWeeklyFire(r, now){
   return d;
 }
 
-const KIND_WORD = { test:'Test', cancelled:'Cancelled', moved:'Moved', extra:'Extra class', note:'Note' };
+const KIND_WORD = { test:'Test', cancelled:'Cancelled', moved:'Moved', extra:'Extra class', note:'Note', late:'Running late' };
 
 /** One-off reminders for class notices that are still ahead of `now`. */
 export function noticeReminders(notices, minutesBefore, now){
@@ -69,6 +69,17 @@ export function noticeReminders(notices, minutesBefore, now){
     const word = KIND_WORD[n.kind] || 'Note';
     const label = n.title ? `${word}: ${n.title}` : word;
     const where = [n.start_time, n.venue].filter(Boolean).join(' · ');
+    if(n.kind === 'late'){
+      // Posted on the day: one reminder before the delayed start, no evening-before.
+      const start = toMinutes(n.start_time);
+      if(start == null) continue;
+      const at = new Date(y, mo-1, da, 0, 0, 0);
+      at.setMinutes(start + (n.delay_minutes || 0) - minutesBefore);
+      if(at > now) out.push({ id: reminderId(`notice|${n.id}|late|${minutesBefore}`), at,
+        title: `${n.code} starts in ${minutesBefore} min (running ${n.delay_minutes ? n.delay_minutes+' min ' : ''}late)`,
+        body: where });
+      continue;
+    }
     const eve = new Date(y, mo-1, da-1, EVENING_BEFORE_HOUR, 0, 0);
     if(eve > now) out.push({ id: reminderId(`notice|${n.id}|eve`), at: eve,
       title: `Tomorrow · ${n.code} ${label}`, body: where || 'Check the timetable app for details' });
@@ -84,7 +95,7 @@ export function noticeReminders(notices, minutesBefore, now){
 }
 
 /** Everything to schedule, soonest first, capped at `limit`. */
-export function planReminders({ sessions = [], notices = [], minutesBefore = 15, now = new Date(), limit = MAX_PENDING }){
+export function planReminders({ sessions = [], notices = [], minutesBefore = 10, now = new Date(), limit = MAX_PENDING }){
   const weekly = weeklyReminders(sessions, minutesBefore).map(r=>({ ...r, next: nextWeeklyFire(r, now) }));
   const once = noticeReminders(notices, minutesBefore, now).map(r=>({ ...r, next: r.at }));
   return [...weekly, ...once].sort((a,b)=>a.next - b.next).slice(0, limit);

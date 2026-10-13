@@ -65,3 +65,10 @@ export function campusSeed(){
   s.users.push({ id:'u-kadmin', email:'kadmin@test.local', password:'secret' }, { id:'u-lect', email:'lect@test.local', password:'secret' }, { id:'u-new', email:'new@test.local', password:'secret123' });
   return s;
 }
+
+/** After migration 003: class reps, late notices, course announcements, push. */
+export function v3Seed(){
+  const s = campusSeed();
+  s.schemaVersion = 3;
+  return s;
+}

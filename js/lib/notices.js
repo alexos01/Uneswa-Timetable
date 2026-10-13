@@ -6,7 +6,12 @@ export const NOTICE_KINDS = {
   moved:     { label:'Moved',       verb:'Class moved' },
   extra:     { label:'Extra class', verb:'Extra class' },
   note:      { label:'Note',        verb:'Note' },
+  late:      { label:'Running late', verb:'Running late' },
 };
+
+/** Kinds that change a class on the day, shown on the student's next-class banner. */
+export const CHANGE_KINDS = ['late', 'cancelled', 'moved'];
+export const DELAY_CHOICES = [5, 10, 15, 20, 30, 45, 60];
 
 export function localIsoDate(d = new Date()){
   const p = n=>String(n).padStart(2,'0');
@@ -21,9 +26,27 @@ export function upcomingNotices(notices, codes, today = localIsoDate()){
     .sort((a,b)=>a.notice_date.localeCompare(b.notice_date) || (a.start_time||'').localeCompare(b.start_time||''));
 }
 
+/** "Running 15 min late", "Class cancelled", …: the notice in a few words. */
+export function noticeSummary(n){
+  const kind = NOTICE_KINDS[n.kind] || NOTICE_KINDS.note;
+  if(n.kind === 'late') return n.delay_minutes ? `Running ${n.delay_minutes} min late` : 'Running late';
+  if(n.kind === 'moved' && n.venue) return `Moved to ${n.venue}`;
+  return kind.verb;
+}
+
 export function describeNotice(n){
   const kind = NOTICE_KINDS[n.kind] || NOTICE_KINDS.note;
   const time = n.start_time ? ` ${n.start_time}${n.end_time ? '–'+n.end_time : ''}` : '';
   const venue = n.venue ? ` · ${n.venue}` : '';
-  return { kind, heading: `${n.code} · ${n.title || kind.verb}`, when: `${n.notice_date}${time}${venue}` };
+  const heading = n.kind === 'late' ? noticeSummary(n) + (n.title ? `: ${n.title}` : '') : (n.title || kind.verb);
+  return { kind, heading: `${n.code} · ${heading}`, when: `${n.notice_date}${time}${venue}` };
+}
+
+/** The latest same-day change (late, cancelled, moved) to one class, or null.
+    A notice with a start time only matches the session starting then. */
+export function changeFor(notices, code, isoDate, startTime){
+  const hits = notices.filter(n=>n.code===code && n.notice_date===isoDate && CHANGE_KINDS.includes(n.kind)
+    && (!n.start_time || !startTime || n.start_time===startTime));
+  hits.sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
+  return hits[0] || null;
 }

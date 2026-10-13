@@ -12,11 +12,17 @@ export const sb = (SUPABASE_URL.includes('YOUR-PROJECT')) ? null : supabase.crea
    app behaves exactly as it did with one campus and one admin login. */
 export async function detectCapabilities(){
   const c = await sb.from('campuses').select('*').order('sort');
+  if(c.error && isNetworkError(c.error)) throw c.error;
   state.caps.campuses = !c.error;
   state.campuses = c.error ? [] : (c.data || []);
   if(state.caps.campuses){
     const a = await sb.from('announcements').select('id').limit(1);
     state.caps.notices = !a.error;
+  }
+  if(state.caps.notices){
+    const v = await sb.rpc('app_schema_version');
+    if(v.error && isNetworkError(v.error)) throw v.error;
+    state.caps.v3 = !v.error && v.data >= 3; // class reps, late notices, push (migration 003)
   }
   return state.caps;
 }

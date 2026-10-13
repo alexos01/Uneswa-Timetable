@@ -2,11 +2,11 @@
 export const state = {
   faculties:[], programmes:[], modules:[], exams:[],
   meta:{semester:"Not set yet", updated_at:null, semester_version:1},
-  caps:{ campuses:false, notices:false }, campuses:[], campusId:'',
+  caps:{ campuses:false, notices:false, v3:false }, campuses:[], campusId:'',
   session:null, staff:null, announcements:[], notices:[], loadedAt:null, offline:false, pendingSync:0,
   currentStudentId:null, currentStudent:null, resetNotice:false,
   pickFaculty:'', pickProgramme:'', pickYear:'', searchQuery:'', searchAllCourses:false,
-  notif:{enabled:false, minutesBefore:15},
+  notif:{enabled:false, minutesBefore:10},
   tab:'student', adminTab:'faculties',
   aiImportFaculty:'', aiImportProgramme:'', aiImportKind:'modules', aiPages:[], aiPending:[], aiStatus:'', aiDebugRaw:[], aiPasteText:'',
   studentSearch:'', editingStudentId:null, students:[]

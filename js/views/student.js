@@ -9,6 +9,7 @@ import { render } from '../render.js';
 import { facName, moduleYear, progName, programmesInFaculty, state, yearLabel } from '../state.js';
 import { esc, toast } from '../util.js';
 import { searchModules } from '../lib/modules.js';
+import { changeFor, localIsoDate, noticeSummary } from '../lib/notices.js';
 
 /* ================= STUDENT VIEW ================= */
 export function myModules(student){ return state.modules.filter(m => (student.module_ids||[]).includes(m.id)); }
@@ -21,11 +22,12 @@ export function nextClass(student){
   const mods = myModules(student); const todayIdx = now.getDay(); const nowMin = now.getHours()*60+now.getMinutes();
   const todays = mods.filter(m=>m.day===dayNames[todayIdx]);
   const upcomingToday = todays.filter(m=>{ const [h,mi]=m.start_time.split(':').map(Number); return h*60+mi>=nowMin; }).sort((a,b)=>a.start_time.localeCompare(b.start_time));
-  if(upcomingToday.length) return {mod:upcomingToday[0], when:'today'};
+  const dayAfter = d=>{ const x = new Date(now); x.setDate(x.getDate()+d); return x; };
+  if(upcomingToday.length) return {mod:upcomingToday[0], when:'today', date:now};
   for(let d=1; d<=6; d++){
     const idx=(todayIdx+d)%7, dn=dayNames[idx];
     const found = mods.filter(m=>m.day===dn).sort((a,b)=>a.start_time.localeCompare(b.start_time));
-    if(found.length) return {mod:found[0], when: d===1?'tomorrow':dn};
+    if(found.length) return {mod:found[0], when: d===1?'tomorrow':dn, date:dayAfter(d)};
   }
   return null;
 }
@@ -116,10 +118,12 @@ export function renderStudent(){
   const nc = nextClass(student);
   const banner=document.createElement('div');
   if(nc){
+    const change = changeFor(state.notices, nc.mod.code, localIsoDate(nc.date), nc.mod.start_time);
     banner.className='today-banner';
     banner.innerHTML = `<div class="lbl">Next class · ${esc(nc.when)}</div>
       <div class="next">${esc(nc.mod.code)} at ${esc(nc.mod.start_time)}</div>
-      <div class="subd">${esc(nc.mod.venue||'Venue TBC')} · ${esc(nc.mod.day)}</div>`;
+      <div class="subd">${esc(nc.mod.venue||'Venue TBC')} · ${esc(nc.mod.day)}</div>
+      ${change ? `<div class="bannerchange kind-${esc(change.kind)}">${esc(noticeSummary(change))}${change.title?` · ${esc(change.title)}`:''}</div>` : ''}`;
   } else {
     banner.className='today-banner empty';
     banner.innerHTML = `<div class="lbl">Next class</div><div class="next">Nothing scheduled</div>

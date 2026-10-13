@@ -55,3 +55,11 @@ test('ids are stable and positive', ()=>{
   assert.equal(reminderId('class|CSC111|Monday|08:00'), reminderId('class|CSC111|Monday|08:00'));
   assert.ok(reminderId('a') > 0 && reminderId('a') < 2**31);
 });
+
+test('a late notice reminds before the delayed start, with no evening-before', ()=>{
+  const now = new Date(2026, 9, 20, 7, 0);
+  const r = noticeReminders([{ id:'l', code:'CSC111', kind:'late', notice_date:'2026-10-20', start_time:'08:00', delay_minutes:15, venue:'G.005' }], 10, now);
+  assert.equal(r.length, 1);
+  assert.equal(r[0].title, 'CSC111 starts in 10 min (running 15 min late)');
+  assert.equal(r[0].at.getTime(), new Date(2026, 9, 20, 8, 5).getTime());
+});
