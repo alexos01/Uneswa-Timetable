@@ -21,16 +21,16 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: npm test -- --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./tests/github-reporter.mjs --test-reporter-destination=stdout
       - name: UI tests (Chrome is preinstalled on the runner)
-        run: npm run test:ui
+        run: node --test --test-concurrency=1 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./tests/github-reporter.mjs --test-reporter-destination=stdout "tests/ui/*.test.mjs"
       - name: Migrations and RLS rules
         run: npm run test:db
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
       - name: Push Edge Function under Deno
-        run: npm run test:functions
+        run: node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./tests/github-reporter.mjs --test-reporter-destination=stdout "tests/functions/*.test.mjs"
 
   android:
     name: Android debug APK
