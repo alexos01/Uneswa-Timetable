@@ -4,6 +4,7 @@ import { cachedStudent } from '../cache.js';
 import { isNetworkError } from '../sync.js';
 import { renderNoticeList } from './notices.js';
 import { isNative, requestNotificationPermission } from '../platform.js';
+import { pushAvailable } from '../push.js';
 import { exportPdf } from '../pdf.js';
 import { render } from '../render.js';
 import { facName, moduleYear, progName, programmesInFaculty, state, yearLabel } from '../state.js';
@@ -157,7 +158,7 @@ export function renderStudent(){
       <label class="row" style="font-size:13px;"><input type="checkbox" id="notifToggle" ${state.notif.enabled?'checked':''}> Notify me before class starts</label>
       <div class="field" style="margin-top:10px;"><label>Minutes before</label>
         <select id="notifMins">${[5,10,15,30,60].map(m=>`<option value="${m}" ${state.notif.minutesBefore===m?'selected':''}>${m} minutes</option>`).join('')}</select></div>
-      <div class="muted">${isNative ? 'Reminders arrive even when the app is closed, including the evening before a test.' : 'In a browser, reminders only arrive while this page is open. Install the Android or iPhone app to get them when it is closed.'}</div>
+      <div class="muted">${reminderHelp()}</div>
     </div>`;
   grid2.appendChild(left);
 
@@ -212,6 +213,12 @@ export function renderStudent(){
   },0);
 
   return wrap;
+}
+
+function reminderHelp(){
+  if(isNative) return 'Reminders arrive even when the app is closed, including the evening before a test.';
+  if(pushAvailable()) return 'Reminders, and alerts when a class is late, cancelled or moved, arrive even when this page is closed. On an iPhone, first add this site to your Home Screen (Share → Add to Home Screen) and open it from there.';
+  return 'In a browser, reminders only arrive while this page is open. Install the Android or iPhone app to get them when it is closed.';
 }
 
 export function groupModulesByCode(mods){

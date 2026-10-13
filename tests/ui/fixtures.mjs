@@ -70,5 +70,6 @@ export function campusSeed(){
 export function v3Seed(){
   const s = campusSeed();
   s.schemaVersion = 3;
+  s.tables.push_subscriptions = [];
   return s;
 }

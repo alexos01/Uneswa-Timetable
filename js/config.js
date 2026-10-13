@@ -10,6 +10,11 @@ export const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday"];
 export const HOURS = ["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
 export const SLOTS = ["07:00-07:50","08:00-08:50","09:00-09:50","10:00-10:50","11:00-11:50","12:00-12:50","13:00-13:50","14:00-14:50","15:00-15:50","16:00-16:50","17:00-17:50"];
 
+/* Web Push: the public VAPID key. Leave empty to keep push off. Generate a key pair
+   with `npx web-push generate-vapid-keys`, paste the public key here, and set the
+   private key as a Supabase secret (see supabase/functions/send-push/README.md). */
+export const PUSH_PUBLIC_KEY = "";
+
 /* Campus used before a student picks one, and for all data before migration 001. */
 export const DEFAULT_CAMPUS = "kwaluseni";
 

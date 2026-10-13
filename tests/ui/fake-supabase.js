@@ -13,6 +13,18 @@
     app_schema_version(){
       return seed.schemaVersion ? { data: seed.schemaVersion, error:null } : { data:null, error:{ code:'PGRST202', message:'Could not find the function public.app_schema_version' } };
     },
+    save_push_subscription(args, ctx){
+      if(!ctx.tables.push_subscriptions) return { data:null, error:{ code:'PGRST202', message:'Could not find the function public.save_push_subscription' } };
+      const codes = [...new Set(ctx.tables.modules.filter(m=>(args.p_module_ids||[]).includes(m.id)).map(m=>m.code))].sort();
+      const row = { endpoint:args.p_endpoint, p256dh:args.p_p256dh, auth:args.p_auth, campus_id:args.p_campus, student_id:args.p_student,
+        module_ids:args.p_module_ids, codes, minutes_before:args.p_minutes_before, reminders:args.p_reminders };
+      ctx.tables.push_subscriptions = ctx.tables.push_subscriptions.filter(x=>x.endpoint!==row.endpoint).concat([row]);
+      return { data:null, error:null };
+    },
+    delete_push_subscription(args, ctx){
+      ctx.tables.push_subscriptions = (ctx.tables.push_subscriptions||[]).filter(x=>x.endpoint!==args.p_endpoint);
+      return { data:null, error:null };
+    },
     grant_staff_role(args, ctx){
       const u = ctx.users.find(x=>x.email===args.p_email);
       if(!u) return { data:null, error:{ message:`No account uses ${args.p_email}. Ask them to create one under Staff sign in first.` } };

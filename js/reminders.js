@@ -2,7 +2,8 @@ import { state } from './state.js';
 import { myModules } from './views/student.js';
 import { isNative, replaceScheduledReminders, showNow } from './platform.js';
 import { planReminders, reminderId } from './lib/reminders.js';
-import { CHANGE_KINDS, changeAlert, unseenChanges, upcomingNotices } from './lib/notices.js';
+import { CHANGE_KINDS, changeAlert, localIsoDate, unseenChanges, upcomingNotices } from './lib/notices.js';
+import { syncPush } from './push.js';
 
 /* Class reminders.
    Native app: whenever the timetable, notices or reminder settings change, every
@@ -15,6 +16,8 @@ export function startReminders(){
     document.addEventListener('timetable:changed', ()=>{ clearTimeout(t); t = setTimeout(syncNativeReminders, 400); });
     syncNativeReminders();
   } else {
+    let t = null;
+    document.addEventListener('timetable:changed', ()=>{ clearTimeout(t); t = setTimeout(()=>syncPush().catch(err=>console.warn('Push not set up', err)), 400); });
     startWebReminders();
   }
 }
@@ -62,7 +65,7 @@ function startWebReminders(){
       if(m.day!==today) return;
       const [h,mi]=m.start_time.split(':').map(Number); const startMin=h*60+mi;
       if(startMin-nowMin===state.notif.minutesBefore){
-        const key='notified-'+m.id+'-'+now.toDateString();
+        const key=`class-${m.id}-${localIsoDate(now)}`; // same tag as the push reminder, so only one shows
         if(sessionStorage.getItem(key)) return;
         sessionStorage.setItem(key,'1');
         showNow({ id: reminderId(key), title:`${m.code} starts in ${state.notif.minutesBefore} min`, body:`${m.venue||'Venue TBC'} · ${m.start_time}-${m.end_time||''}`, tag:key });

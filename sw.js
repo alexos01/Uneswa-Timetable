@@ -26,6 +26,7 @@ const APP_FILES = [
   'js/main.js',
   'js/pdf.js',
   'js/platform.js',
+  'js/push.js',
   'js/reminders.js',
   'js/render.js',
   'js/state.js',
@@ -99,6 +100,15 @@ async function cacheFirst(req, name){
   if(res.ok || res.type === 'opaque') cache.put(req, res.clone());
   return res;
 }
+
+// Web Push from the send-push Edge Function: { title, body, tag }.
+self.addEventListener('push', event=>{
+  let data = {};
+  try{ data = event.data ? event.data.json() : {}; }catch{ data = { body: event.data ? event.data.text() : '' }; }
+  event.waitUntil(self.registration.showNotification(data.title || 'UNESWA Timetable', {
+    body: data.body || '', tag: data.tag, icon:'icons/icon-192.png', badge:'icons/favicon-32.png',
+  }));
+});
 
 // Tapping a notification brings the app forward, or opens it.
 self.addEventListener('notificationclick', event=>{
