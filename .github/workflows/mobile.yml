@@ -26,6 +26,11 @@ jobs:
         run: npm run test:ui
       - name: Migrations and RLS rules
         run: npm run test:db
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Push Edge Function under Deno
+        run: npm run test:functions
 
   android:
     name: Android debug APK

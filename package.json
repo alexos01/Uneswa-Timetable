@@ -13,7 +13,8 @@
     "ios": "npm run sync && npx cap open ios",
     "test": "node --test \"tests/unit/*.test.mjs\"",
     "test:ui": "node --test --test-concurrency=1 \"tests/ui/*.test.mjs\"",
-    "test:db": "bash tests/db/run.sh"
+    "test:db": "bash tests/db/run.sh",
+    "test:functions": "node --test \"tests/functions/*.test.mjs\""
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
