@@ -75,3 +75,25 @@ test('opens offline with the last saved timetable', async ()=>{
   assert.match(await page.textContent('#toast'), /You're offline/);
   assert.deepEqual(errors.filter(e=>!/Failed to fetch|fetchAllRows/.test(e)), []);
 });
+
+test('the official timetable for a course and year downloads as PDF and CSV', async ()=>{
+  const { readFile } = await import('node:fs/promises');
+  const { page, errors } = await openApp(browser, server.url, legacySeed());
+  await signIn(page);
+  assert.equal(await page.isVisible('#courseDownloads'), false, 'hidden until a course is picked');
+  await page.selectOption('#facSel', ids.FAC_SCI);
+  await page.selectOption('#progSel', ids.BSC_CS);
+  await page.selectOption('#yearSel', '1');
+  const [pdf] = await Promise.all([ page.waitForEvent('download'), page.click('#coursePdfBtn') ]);
+  assert.equal(pdf.suggestedFilename(), 'B.Sc.-Computer-Science-year-1-timetable.pdf');
+  assert.equal((await readFile(await pdf.path())).subarray(0, 5).toString(), '%PDF-');
+  const [csv] = await Promise.all([ page.waitForEvent('download'), page.click('#courseCsvBtn') ]);
+  assert.equal(csv.suggestedFilename(), 'B.Sc.-Computer-Science-year-1-timetable.csv');
+  assert.equal(await readFile(await csv.path(), 'utf8'), [
+    'Code,Day,Start,End,Venue,Course,Faculty',
+    'CSC111,Monday,08:00,08:50,SC.LEC.TH.I,B.Sc. Computer Science,Faculty of Science and Engineering',
+    'CSC111,Wednesday,10:00,10:50,SC.LEC.TH.I,B.Sc. Computer Science,Faculty of Science and Engineering',
+    'MAT111,Thursday,15:00,15:50,MPH,B.Sc. Computer Science,Faculty of Science and Engineering',
+  ].join('\r\n') + '\r\n', 'year 2 (CSC211) is left out');
+  assert.deepEqual(errors, []);
+});

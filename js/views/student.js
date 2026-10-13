@@ -5,11 +5,13 @@ import { isNetworkError } from '../sync.js';
 import { renderNoticeList } from './notices.js';
 import { isNative, requestNotificationPermission } from '../platform.js';
 import { pushAvailable } from '../push.js';
-import { exportPdf } from '../pdf.js';
+import { courseTimetable, exportCoursePdf, exportPdf } from '../pdf.js';
+import { saveText } from '../platform.js';
+import { templateHeader, toCsv } from '../lib/csv.js';
 import { render } from '../render.js';
 import { facName, moduleYear, progName, programmesInFaculty, state, yearLabel } from '../state.js';
 import { esc, toast } from '../util.js';
-import { searchModules } from '../lib/modules.js';
+import { searchModules, sortSessions } from '../lib/modules.js';
 import { changeFor, localIsoDate, noticeSummary } from '../lib/notices.js';
 
 /* ================= STUDENT VIEW ================= */
@@ -148,6 +150,8 @@ export function renderStudent(){
         <select id="yearSel"><option value="">All years</option></select></div>
       <div class="field"><label><span class="stepnum">4</span>Modules on this course</label></div>
       <div class="modlist" id="modList"></div>
+      <div class="row coursedl" id="courseDownloads" hidden><span class="muted">Official timetable for this course:</span>
+        <button class="btn small secondary" id="coursePdfBtn">PDF</button><button class="btn small secondary" id="courseCsvBtn">CSV</button></div>
       <div class="divider"></div>
       <div class="field"><label>Search by module code</label><input id="modSearch" value="${esc(state.searchQuery)}" placeholder="e.g. CSC211"></div>
       <label class="row searchscope"><input type="checkbox" id="searchAll" ${state.searchAllCourses?'checked':''}> Include other courses (electives)</label>
@@ -192,6 +196,8 @@ export function renderStudent(){
     refreshProgOptions();
     refreshYearOptions();
     renderProgModList(student);
+    document.getElementById('coursePdfBtn').onclick = ()=>exportCoursePdf(state.pickProgramme, state.pickYear);
+    document.getElementById('courseCsvBtn').onclick = ()=>exportCourseCsv(state.pickProgramme, state.pickYear);
     document.getElementById('modSearch').oninput = e=>renderSearchList(student, e.target.value);
     document.getElementById('searchAll').onchange = e=>{ state.searchAllCourses = e.target.checked; renderSearchList(student, state.searchQuery); };
     if(state.searchQuery) renderSearchList(student, state.searchQuery);
@@ -241,9 +247,21 @@ export async function toggleModuleGroup(student, ids, checked){
   render();
 }
 
+function exportCourseCsv(programmeId, year){
+  const { sessions } = courseTimetable(programmeId, year);
+  const prog = state.programmes.find(p=>p.id===programmeId);
+  const rows = sortSessions(sessions).map(m=>[m.code, m.day, m.start_time, m.end_time, m.venue, prog?.name || '', prog?.faculty_id ? facName(prog.faculty_id) : '']);
+  const name = (prog?.name || 'course').trim().replace(/[^A-Za-z0-9.]+/g, '-');
+  saveText(toCsv([templateHeader('modules'), ...rows]), `${name}${year ? '-year-'+year : ''}-timetable.csv`)
+    .then(how=>toast(how === 'shared' ? 'CSV ready to save or share' : 'CSV downloaded'))
+    .catch(err=>{ if(!/cancel/i.test(err?.message||'')) toast('Could not save the CSV: '+(err?.message||err)); });
+}
+
 export function renderProgModList(student){
   const el = document.getElementById('modList');
   if(!el) return;
+  const dl = document.getElementById('courseDownloads');
+  if(dl) dl.hidden = !state.pickProgramme || !state.modules.some(m=>m.programme_id===state.pickProgramme);
   if(!state.pickProgramme){ el.innerHTML = `<div class="empty-state">Pick a faculty and course above to see its modules.</div>`; return; }
   let mods = state.modules.filter(m=>m.programme_id===state.pickProgramme);
   if(state.pickYear){ mods = mods.filter(m=>String(moduleYear(m.code))===String(state.pickYear)); }
