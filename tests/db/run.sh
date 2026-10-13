@@ -15,5 +15,5 @@ for f in supabase/migrations/*.sql; do echo "== $f"; psql_run < "$f"; done
 echo "== re-running migrations (must be idempotent)"
 for f in supabase/migrations/*.sql; do psql_run < "$f"; done
 echo "== RLS checks"
-psql_run < tests/db/10_rls_test.sql 2>&1 | sed 's/^psql:[^ ]* NOTICE:  //'
+for f in tests/db/*_test.sql; do psql_run < "$f" 2>&1 | sed 's/^psql:[^ ]* NOTICE:  //'; done
 echo "All database checks passed."
