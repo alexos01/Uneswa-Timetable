@@ -130,7 +130,7 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 
 <section id="status">
   <h2>Status on 13 Oct 2026</h2>
-  <p>Everything in the delivery plan is on <code>main</code>, including phase 2 (offline web app, push, class reps, late notices, CSV timetables). The live site runs the new code in single-campus mode until the migrations are run.</p>
+  <p>Everything in the delivery plan is on <code>main</code>, including phase 2 (offline web app, push, class reps, late notices, CSV timetables). The live database has migrations 001 and 002; the phase 2 features that need 003 stay hidden until it is run.</p>
   <div class="tbl"><table>
     <thead><tr><th>Item</th><th>State</th><th>Evidence</th></tr></thead>
     <tbody>
@@ -142,7 +142,7 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
       <tr><td>iOS simulator build</td><td><span class="chip yes">builds in CI</span></td><td>Unsigned, macOS runner</td></tr>
       <tr><td>Live site after the push</td><td><span class="chip yes">loads</span></td><td>Checked against the real database: single-campus mode, student sign-in screen shows</td></tr>
       <tr><td>Reminders and PDF sharing on a real phone</td><td><span class="chip part">not yet tested</span></td><td>Needs the APK installed on a device. Emulators and CI can't confirm notification delivery.</td></tr>
-      <tr><td>Migrations on the live project</td><td><span class="chip part">not run</span></td><td>Needs dashboard access; see Risks</td></tr>
+      <tr><td>Migrations on the live project</td><td><span class="chip part">001 + 002 run, 003 not run</span></td><td>Seen on 13 Oct 2026 by loading the app against the live database: campus header and Announcements/Lecturer tabs present, <code>app_schema_version()</code> missing</td></tr>
       <tr><td>Web Push on the live project</td><td><span class="chip part">off</span></td><td>Needs VAPID keys, the function deployed and <code>setup.sql</code> run; see Risks</td></tr>
       <tr><td>Store releases</td><td><span class="chip no">not started</span></td><td>Needs developer accounts and signing keys</td></tr>
     </tbody>
