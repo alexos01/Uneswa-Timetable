@@ -37,6 +37,28 @@ export async function initShell({ onBack, onResume } = {}){
   }
 }
 
+/** Web only: registers the service worker (offline + install) and wires the
+    "Install app" button, which shows once the browser offers to install. */
+export function initWebApp(){
+  if(isNative || !('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('sw.js').catch(err=>console.warn('Service worker not registered', err));
+  const btn = document.getElementById('installBtn');
+  if(!btn) return;
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', e=>{
+    e.preventDefault();
+    deferred = e;
+    btn.hidden = false;
+  });
+  window.addEventListener('appinstalled', ()=>{ deferred = null; btn.hidden = true; });
+  btn.onclick = async ()=>{
+    if(!deferred) return;
+    deferred.prompt();
+    await deferred.userChoice.catch(()=>null);
+    deferred = null; btn.hidden = true;
+  };
+}
+
 export async function hideSplash(){
   if(isNative){ try{ await SplashScreen.hide(); }catch{} }
 }

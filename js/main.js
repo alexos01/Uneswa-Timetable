@@ -4,7 +4,7 @@ import { render, setTab } from './render.js';
 import { state } from './state.js';
 import { startReminders } from './reminders.js';
 import { restoreSnapshot, saveSnapshot } from './cache.js';
-import { hideSplash, initShell } from './platform.js';
+import { hideSplash, initShell, initWebApp } from './platform.js';
 import { toast } from './util.js';
 
 function readLocal(key){ try{ return localStorage.getItem(key); }catch{ return null; } }
@@ -16,6 +16,7 @@ function readLocal(key){ try{ return localStorage.getItem(key); }catch{ return n
     onBack: ()=>{ if(state.tab !== 'student'){ setTab('student'); return true; } return false; },
     onResume: ()=>scheduleRefresh(0),
   });
+  initWebApp();
   if(!sb){ render(); hideSplash(); return; }
   const savedNotif = readLocal('uneswa_notif');
   if(savedNotif){ try{ state.notif = JSON.parse(savedNotif); }catch{} }

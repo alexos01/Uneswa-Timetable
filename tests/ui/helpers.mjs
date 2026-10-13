@@ -31,15 +31,18 @@ export async function launch(){
   return chromium.launch({ executablePath: chromiumPath(), args:['--no-sandbox'] });
 }
 
-/** Opens the app with a seeded fake backend. Returns { page, errors }. */
-export async function openApp(browser, baseUrl, seed, { viewport={ width:1280, height:900 }, localStorage={} } = {}){
-  const context = await browser.newContext({ viewport, acceptDownloads:true });
+/** Opens the app with a seeded fake backend. Returns { page, errors }.
+    The service worker is blocked unless a test asks for it, so other tests always
+    load the files on disk. Routes are set on the context so they also catch
+    requests the service worker makes. */
+export async function openApp(browser, baseUrl, seed, { viewport={ width:1280, height:900 }, localStorage={}, serviceWorkers='block' } = {}){
+  const context = await browser.newContext({ viewport, acceptDownloads:true, serviceWorkers });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', e=>errors.push(e.message));
   page.on('console', m=>{ if(m.type()==='error' && !/favicon|Failed to load resource/.test(m.text())) errors.push(m.text()); });
-  await page.route('**/vendor/supabase.js', route=>route.fulfill({ path: join(root, 'tests/ui/fake-supabase.js'), contentType:'text/javascript' }));
-  await page.route(/^https?:\/\/(?!localhost)/, route=>route.abort()); // no outside network in tests
+  await context.route('**/vendor/supabase.js', route=>route.fulfill({ path: join(root, 'tests/ui/fake-supabase.js'), contentType:'text/javascript' }));
+  await context.route(/^https?:\/\/(?!localhost)/, route=>route.abort()); // no outside network in tests
   await page.addInitScript(([s, ls])=>{
     window.__FAKE_DB__ = s;
     for(const [k,v] of Object.entries(ls)) window.localStorage.setItem(k, v);
