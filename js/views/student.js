@@ -344,7 +344,9 @@ export function renderWeekGrid(student){
     rows+='</tr>';
   });
   table.innerHTML = thead+rows;
-  card.appendChild(table);
+  const scroller = document.createElement('div'); scroller.className = 'tablewrap'; // scrolls sideways on a phone
+  scroller.appendChild(table);
+  card.appendChild(scroller);
   setTimeout(()=>{ document.getElementById('exportPdfBtn').onclick = ()=>exportPdf(student); },0);
   return card;
 }
