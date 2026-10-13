@@ -38,8 +38,8 @@ export function buildTimetablePdf({ title, subtitle, sessions, exams = [], examT
     theme: 'grid',
     styles: { fontSize: 8, cellPadding: 2, valign: 'top', lineColor: [220,220,220], lineWidth: 0.2 },
     headStyles: { fillColor: [31,61,46], textColor: 255, fontStyle: 'bold', halign: 'center' },
-    columnStyles: { 0: { cellWidth: 18, fontStyle: 'bold', halign: 'center', fillColor: [247,245,238] } },
-    alternateRowStyles: { fillColor: [252,251,247] },
+    columnStyles: { 0: { cellWidth: 18, fontStyle: 'bold', halign: 'center', fillColor: [236,242,238] } },
+    alternateRowStyles: { fillColor: [247,250,248] },
     didParseCell: (data)=>{
       if(data.section==='body' && data.column.index>0 && data.cell.raw){ data.cell.styles.fillColor = [243,230,196]; } // highlight occupied cells
     }

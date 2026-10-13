@@ -2,7 +2,7 @@
   "appId": "io.github.alexos01.uneswatimetable",
   "appName": "UNESWA Timetable",
   "webDir": "www",
-  "backgroundColor": "#FAF6EE",
+  "backgroundColor": "#F1F5F2",
   "android": {
     "allowMixedContent": false
   },
