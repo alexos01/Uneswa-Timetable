@@ -72,6 +72,20 @@ export async function savePdf(doc, filename){
   return 'shared';
 }
 
+/** Saves a text file such as a CSV: a download on the web, the share sheet on a phone. */
+export async function saveText(text, filename, mime = 'text/csv'){
+  if(!isNative){
+    const url = URL.createObjectURL(new Blob([text], { type: mime + ';charset=utf-8' }));
+    const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 1000);
+    return 'downloaded';
+  }
+  const { uri } = await Filesystem.writeFile({ path: filename, data: text, directory: 'CACHE', encoding: 'utf8' });
+  await Share.share({ title: filename, files: [uri], dialogTitle: 'Save or share' });
+  return 'shared';
+}
+
 /* ---------------- notifications ---------------- */
 export async function requestNotificationPermission(){
   if(!isNative){
