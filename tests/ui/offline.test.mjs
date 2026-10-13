@@ -52,3 +52,43 @@ test('offline, the whole campus timetable is still there to browse', async ()=>{
   assert.match(await page.textContent('#modList'), /ACF111/, 'another course is browsable offline');
   assert.deepEqual(errors.filter(e=>!/Failed to fetch|fetchAllRows/.test(e)), []);
 });
+
+test('modules ticked offline are saved on the device and sync when back online', async ()=>{
+  const { page, context, errors } = await openApp(browser, server.url, legacySeed());
+  await signIn(page, '202100779', 'Syncing Student');
+  await page.selectOption('#facSel', ids.FAC_SCI);
+  await page.selectOption('#progSel', ids.BSC_CS);
+  await page.locator('#modList .modrow', { hasText:'CSC211' }).locator('input').check();
+  await page.waitForSelector('table.grid .cell-mod');
+
+  await context.addInitScript(()=>{ window.__FAKE_DB__.failNetwork = true; });
+  await page.reload();
+  await page.waitForSelector('table.grid .cell-mod');
+  await page.selectOption('#facSel', ids.FAC_SCI);
+  await page.selectOption('#progSel', ids.BSC_CS);
+  await page.locator('#modList .modrow', { hasText:'MAT111' }).locator('input').check();
+  await page.waitForFunction(()=>document.querySelector('#semesterLabel').textContent.includes('1 change waiting to sync'));
+  assert.match(await page.textContent('table.grid'), /MAT111/, 'the change shows straight away');
+
+  await page.evaluate(()=>{ window.__FAKE_DB__.failNetwork = false; window.dispatchEvent(new Event('online')); });
+  await page.waitForFunction(()=>window.__FAKE_TABLES__.students.some(s=>s.id==='202100779' && s.module_ids.includes('m4')));
+  await page.waitForFunction(()=>!/offline|waiting to sync/.test(document.querySelector('#semesterLabel').textContent));
+  assert.match(await page.textContent('#toast'), /back online/);
+  assert.match(await page.textContent('table.grid'), /MAT111/);
+  assert.deepEqual(errors.filter(e=>!/Failed to fetch|fetchAllRows/.test(e)), []);
+});
+
+test('a student can sign in for the first time with no connection', async ()=>{
+  const { page, context, errors } = await openApp(browser, server.url, legacySeed());
+  await signIn(page, '202100780', 'First Visit'); // loads the campus copy
+  await page.click('#switchStudentBtn');
+  await context.addInitScript(()=>{ window.__FAKE_DB__.failNetwork = true; });
+  await page.reload();
+  await signIn(page, '202100781', 'Offline Newcomer');
+  await page.selectOption('#facSel', ids.FAC_SCI);
+  await page.selectOption('#progSel', ids.BSC_CS);
+  await page.locator('#modList .modrow', { hasText:'CSC111' }).locator('input').check();
+  await page.waitForSelector('table.grid .cell-mod');
+  assert.match(await page.textContent('#semesterLabel'), /waiting to sync/);
+  assert.deepEqual(errors.filter(e=>!/Failed to fetch|fetchAllRows/.test(e)), []);
+});

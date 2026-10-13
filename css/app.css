@@ -16,6 +16,7 @@ a{color:var(--terracotta);}
 .brand .mark{width:34px;height:34px;border-radius:9px;background:var(--mustard);display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:700;color:var(--forest-deep);font-size:16px;}
 .brand h1{font-size:19px;margin:0;font-weight:600;letter-spacing:.2px;}
 .brand small{color:#C9D6C4;font-size:12px;}
+.is-offline .brand small{color:var(--mustard);}
 .tabs{display:flex;gap:4px;background:rgba(255,255,255,.1);padding:4px;border-radius:999px;}
 .tabs button{background:transparent;border:none;color:#D7E0D2;padding:9px 18px;border-radius:999px;font-size:13px;font-weight:600;}
 .tabs button.active{background:var(--mustard);color:var(--forest-deep);}

@@ -2,6 +2,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, DEFAULT_CAMPUS } from './config.js';
 import { render } from './render.js';
 import { state } from './state.js';
 import { toast } from './util.js';
+import { flushOutbox, isNetworkError, queueStudent } from './sync.js';
 
 export const sb = (SUPABASE_URL.includes('YOUR-PROJECT')) ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -132,7 +133,10 @@ export function scheduleRefresh(delay=600){
   clearTimeout(refreshTimer);
   refreshTimer = setTimeout(()=>refreshAndRender(), delay);
 }
+let subscribed = false;
 export function subscribeRealtime(){
+  if(subscribed) return;
+  subscribed = true;
   const ch = sb.channel('db-changes');
   const tables = ['faculties','programmes','modules','exams','settings'];
   if(state.caps.campuses) tables.push('campus_settings');
@@ -144,7 +148,7 @@ export function subscribeRealtime(){
 }
 export async function refreshAndRender(){
   const prevVersion = state.meta.semester_version;
-  try{ await loadAll(); state.offline = false; }catch(err){ console.error(err); return; }
+  try{ await flushOutbox(sb); await loadAll(); state.offline = false; }catch(err){ console.error(err); return; }
   if(state.currentStudent && state.meta.semester_version !== prevVersion){
     const wasReset = checkSemesterReset(state.currentStudent);
     if(wasReset){ await saveStudent(state.currentStudent); state.resetNotice = true; }
@@ -167,14 +171,28 @@ export function checkSemesterReset(student){
   }
   return false;
 }
+/** Saves a student record. With no connection the change is kept on the device
+    and sent later (js/sync.js), so this still succeeds offline. */
 export async function saveStudent(student){
   const row = { ...student };
   if(state.caps.campuses) row.campus_id = row.campus_id || state.campusId;
   else delete row.campus_id;
-  const { data, error } = await sb.from('students').upsert(row).select().single();
-  if(error){ console.error(error); toast('Could not save — check connection'); return null; }
-  state.currentStudent = data;
-  return data;
+  if(!state.offline){
+    const { data, error } = await sb.from('students').upsert(row).select().single();
+    if(!error){ state.currentStudent = data; return data; }
+    if(!isNetworkError(error)){ console.error(error); toast('Could not save: '+error.message); return null; }
+    goneOffline();
+  }
+  await queueStudent(row);
+  state.currentStudent = row;
+  return row;
+}
+
+/** Marks the app offline after a request could not reach the server. */
+export function goneOffline(){
+  if(state.offline) return;
+  state.offline = true;
+  toast("You're offline. Your changes are saved on this device and will sync when you're back online.");
 }
 export async function fetchStudent(id){
   const { data, error } = await sb.from('students').select('*').eq('id', id).maybeSingle();

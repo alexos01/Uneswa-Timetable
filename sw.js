@@ -30,6 +30,7 @@ const APP_FILES = [
   'js/render.js',
   'js/state.js',
   'js/store.js',
+  'js/sync.js',
   'js/util.js',
   'js/views/admin-entries.js',
   'js/views/admin-notices.js',

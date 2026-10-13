@@ -1,5 +1,7 @@
 import { DAYS, HOURS } from '../config.js';
-import { checkSemesterReset, fetchStudent, saveStudent, ensureCampus } from '../db.js';
+import { checkSemesterReset, fetchStudent, saveStudent, ensureCampus, goneOffline } from '../db.js';
+import { cachedStudent } from '../cache.js';
+import { isNetworkError } from '../sync.js';
 import { renderNoticeList } from './notices.js';
 import { isNative, requestNotificationPermission } from '../platform.js';
 import { exportPdf } from '../pdf.js';
@@ -45,10 +47,17 @@ export function renderStudentGate(){
       if(!id){ toast('Enter your student number'); return; }
       document.getElementById('gateGo').disabled = true;
       let student;
-      try{ student = await fetchStudent(id); }
-      catch(err){ toast('Could not reach the server — check your connection'); document.getElementById('gateGo').disabled = false; return; }
+      if(state.offline) student = await cachedStudent(id);
+      else{
+        try{ student = await fetchStudent(id); }
+        catch(err){
+          if(!isNetworkError(err)){ toast('Could not load your timetable: '+err.message); document.getElementById('gateGo').disabled = false; return; }
+          goneOffline();
+          student = await cachedStudent(id);
+        }
+      }
       const campusSel = document.getElementById('gateCampus');
-      const campus = campusSel ? campusSel.value : null;
+      const campus = campusSel ? (state.offline ? state.campusId : campusSel.value) : null; // offline: only this campus is on the device
       if(campus) await ensureCampus(campus);
       if(!student){ student = { id, name, programme_id:null, module_ids:[], semester_version: state.meta.semester_version, updated_at:new Date().toISOString(), history:[] }; }
       else if(name) student.name = name;

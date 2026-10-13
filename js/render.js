@@ -52,11 +52,18 @@ function semesterLine(){
   parts.push(state.meta.semester || 'Semester not set');
   if(state.meta.updated_at) parts.push('updated ' + new Date(state.meta.updated_at).toLocaleDateString());
   if(state.offline) parts.push('offline');
+  if(state.pendingSync) parts.push(`${state.pendingSync} change${state.pendingSync>1?'s':''} waiting to sync`);
   return parts.join(' · ');
 }
 
-export function render(){
+/** Refreshes the header line (campus, semester, offline) without redrawing the page. */
+export function renderStatus(){
   document.getElementById('semesterLabel').textContent = semesterLine();
+  document.body.classList.toggle('is-offline', !!state.offline);
+}
+
+export function render(){
+  renderStatus();
   const main = document.getElementById('main');
   main.innerHTML = '';
   if(!sb){ main.appendChild(renderNoConfig()); return; }
