@@ -83,6 +83,20 @@ export async function requestNotificationPermission(){
   return display === 'granted';
 }
 
+/** Shows a notification now. `tag` stops the same alert showing twice (for example
+    from the open page and from a push message). */
+export async function showNow({ id, title, body, tag }){
+  if(isNative){
+    await LocalNotifications.schedule({ notifications:[{ id, title, body, channelId: CHANNEL_ID }] });
+    return;
+  }
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+  // Chrome on Android only allows notifications through the service worker.
+  if(reg) await reg.showNotification(title, { body, tag, icon:'icons/icon-192.png', badge:'icons/favicon-32.png' });
+  else new Notification(title, { body, tag, icon:'icons/icon-192.png' });
+}
+
 /** Replaces every pending reminder with `plan` (from lib/reminders.js planReminders). */
 export async function replaceScheduledReminders(plan){
   if(!isNative) return false;

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { upcomingNotices, describeNotice, localIsoDate, noticeSummary, changeFor } from '../../js/lib/notices.js';
+import { upcomingNotices, describeNotice, localIsoDate, noticeSummary, changeFor, unseenChanges, changeAlert } from '../../js/lib/notices.js';
 
 const notices = [
   { code:'CSC111', kind:'test', notice_date:'2026-10-20', start_time:'10:00' },
@@ -42,4 +42,22 @@ test('a same-day change matches its class, the newest one wins', ()=>{
   assert.equal(changeFor(list, 'CSC111', '2026-10-20', '14:00').delay_minutes, 5);
   assert.equal(changeFor(list, 'CSC111', '2026-10-21', '08:00'), null);
   assert.equal(changeFor(list, 'MAT111', '2026-10-20', '08:00'), null);
+});
+
+test('only unseen same-day changes for my modules raise an alert', ()=>{
+  const list = [
+    { id:'a', code:'CSC111', kind:'late', notice_date:'2026-10-20', start_time:'08:00', delay_minutes:10 },
+    { id:'b', code:'CSC111', kind:'test', notice_date:'2026-10-20' },
+    { id:'c', code:'MAT111', kind:'cancelled', notice_date:'2026-10-20' },
+    { id:'d', code:'CSC111', kind:'cancelled', notice_date:'2026-10-19' },
+    { id:'e', code:'CSC111', kind:'moved', notice_date:'2026-10-21', venue:'G.011' },
+  ];
+  assert.deepEqual(unseenChanges(list, ['CSC111'], ['e'], '2026-10-20').map(n=>n.id), ['a']);
+});
+
+test('alert text says what changed', ()=>{
+  assert.deepEqual(changeAlert({ code:'CSC111', kind:'late', notice_date:'2026-10-20', start_time:'08:00', delay_minutes:10, venue:'G.005' }, '2026-10-20'),
+    { title:'CSC111 today 08:00: running 10 min late', body:'G.005' });
+  assert.equal(changeAlert({ code:'MAT111', kind:'cancelled', notice_date:'2026-10-21', venue:'MPH' }, '2026-10-20').title, 'MAT111 2026-10-21: cancelled');
+  assert.equal(changeAlert({ code:'MAT111', kind:'moved', notice_date:'2026-10-20', venue:'G.011' }, '2026-10-20').title, 'MAT111 today: moved to G.011');
 });

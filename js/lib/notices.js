@@ -50,3 +50,20 @@ export function changeFor(notices, code, isoDate, startTime){
   hits.sort((a,b)=>(b.created_at||'').localeCompare(a.created_at||''));
   return hits[0] || null;
 }
+
+/** Same-day changes for `codes` that are not in `seenIds`, from `today` on. */
+export function unseenChanges(notices, codes, seenIds, today = localIsoDate()){
+  const set = new Set(codes), seen = new Set(seenIds);
+  return notices.filter(n=>set.has(n.code) && CHANGE_KINDS.includes(n.kind) && n.notice_date >= today && !seen.has(n.id));
+}
+
+/** Notification text for a change notice. */
+export function changeAlert(n, today = localIsoDate()){
+  const when = n.notice_date === today ? 'today' : n.notice_date;
+  const at = n.start_time ? ` ${n.start_time}` : '';
+  const what = noticeSummary(n).replace(/^Class /, '');
+  return {
+    title: `${n.code} ${when}${at}: ${what[0].toLowerCase()}${what.slice(1)}`,
+    body: [n.title, n.venue && n.kind !== 'cancelled' ? n.venue : null].filter(Boolean).join(' · ') || 'Open the timetable for details',
+  };
+}

@@ -35,7 +35,7 @@ export async function launch(){
     The service worker is blocked unless a test asks for it, so other tests always
     load the files on disk. Routes are set on the context so they also catch
     requests the service worker makes. */
-export async function openApp(browser, baseUrl, seed, { viewport={ width:1280, height:900 }, localStorage={}, serviceWorkers='block', fixedTime=null } = {}){
+export async function openApp(browser, baseUrl, seed, { viewport={ width:1280, height:900 }, localStorage={}, serviceWorkers='block', fixedTime=null, initScript=null } = {}){
   const context = await browser.newContext({ viewport, acceptDownloads:true, serviceWorkers });
   const page = await context.newPage();
   const errors = [];
@@ -47,6 +47,7 @@ export async function openApp(browser, baseUrl, seed, { viewport={ width:1280, h
     window.__FAKE_DB__ = s;
     for(const [k,v] of Object.entries(ls)) window.localStorage.setItem(k, v);
   }, [seed, localStorage]);
+  if(initScript) await page.addInitScript(initScript);
   if(fixedTime) await page.clock.setFixedTime(new Date(fixedTime)); // Date is frozen, timers still run
   await page.goto(baseUrl);
   await page.waitForFunction(()=>document.querySelector('#semesterLabel')?.textContent !== 'Loading…');

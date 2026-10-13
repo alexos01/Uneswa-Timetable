@@ -52,3 +52,34 @@ test('student sees that their next class is running late', async ()=>{
   assert.match(await page.textContent('.today-banner .bannerchange'), /Running 15 min late/);
   assert.deepEqual(errors, []);
 });
+
+// Records notifications instead of showing them.
+function recordNotifications(){
+  window.__shown = [];
+  window.Notification = class { constructor(title, opts){ window.__shown.push({ title, ...opts }); } };
+  window.Notification.permission = 'granted';
+  window.Notification.requestPermission = ()=>Promise.resolve('granted');
+}
+
+test('a late notice posted while the app is open alerts the student once', async ()=>{
+  const seed = v3Seed();
+  seed.tables.students = [{ id:'202100124', name:'Alert Student', campus_id:'kwaluseni', module_ids:['k1'], semester_version:1, history:[] }];
+  seed.tables.class_notices.push({ id:'old', campus_id:'kwaluseni', code:'CSC111', kind:'moved', notice_date:'2026-10-19', venue:'G.020' });
+  const { page, errors } = await openApp(browser, server.url, seed, {
+    fixedTime:'2026-10-19T06:30:00', initScript: recordNotifications,
+    localStorage:{ uneswa_last_student:'202100124', uneswa_notif: JSON.stringify({ enabled:true, minutesBefore:10 }) },
+  });
+  await page.waitForSelector('.today-banner');
+  await page.waitForFunction(()=>localStorage.getItem('uneswa_seen_changes'));
+  assert.deepEqual(await page.evaluate(()=>window.__shown), [], 'notices already there on first open are not replayed');
+
+  await page.evaluate(()=>window.supabase.createClient().from('class_notices').insert({
+    id:'new', campus_id:'kwaluseni', code:'CSC111', kind:'late', notice_date:'2026-10-19', start_time:'08:00', delay_minutes:10, venue:'SC.LEC.TH.I' }));
+  await page.waitForFunction(()=>window.__shown.length > 0);
+  const shown = await page.evaluate(()=>window.__shown);
+  assert.equal(shown.length, 1);
+  assert.equal(shown[0].title, 'CSC111 today 08:00: running 10 min late');
+  assert.equal(shown[0].tag, 'notice-new');
+  assert.match(await page.textContent('.today-banner'), /Running 10 min late/);
+  assert.deepEqual(errors, []);
+});

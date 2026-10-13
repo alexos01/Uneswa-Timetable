@@ -99,3 +99,12 @@ async function cacheFirst(req, name){
   if(res.ok || res.type === 'opaque') cache.put(req, res.clone());
   return res;
 }
+
+// Tapping a notification brings the app forward, or opens it.
+self.addEventListener('notificationclick', event=>{
+  event.notification.close();
+  event.waitUntil((async ()=>{
+    const open = (await self.clients.matchAll({ type:'window', includeUncontrolled:true })).find(c=>'focus' in c);
+    return open ? open.focus() : self.clients.openWindow('./');
+  })());
+});
