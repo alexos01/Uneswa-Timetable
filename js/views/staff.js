@@ -1,23 +1,55 @@
 import { sb, loadStaff, isAdmin, isLecturer, isClassRep, ensureCampus, campusName } from '../db.js';
-import { render } from '../render.js';
+import { render, setTab } from '../render.js';
 import { state } from '../state.js';
 import { esc, toast } from '../util.js';
 import { renderAdmin } from './admin.js';
 import { ROLE_LABEL } from './admin-staff.js';
 import { renderLecturer } from './lecturer.js';
+import { renderRep } from './rep.js';
 
-/* ================= STAFF: sign-in and role routing ================= */
+/* ================= STAFF: sign-in and role routing =================
+   Admins work under Staff, lecturers under Lecturer and class reps under Class rep.
+   Any of the three tabs can be used to sign in; afterwards the app moves to the
+   tab for the account's role. */
+const TAB_FOR = { lecturer:'lecturer', class_rep:'rep', campus_admin:'staff', super_admin:'staff' };
+const TAB_LABEL = { lecturer:'Lecturer', rep:'Class rep', staff:'Staff' };
+
 export function renderStaff(){
-  if(!state.session) return renderSignIn();
+  if(!state.session) return renderSignIn('Staff sign in');
   if(isAdmin()) return renderAdmin();
-  if(isLecturer() || isClassRep()) return renderLecturer();
+  if(isLecturer() || isClassRep()) return renderWrongTab();
   return renderNoRole();
+}
+
+/** The Lecturer and Class rep tabs. */
+export function renderRoleTab(role){
+  if(!state.session) return renderSignIn(role==='lecturer' ? 'Lecturer sign in' : 'Class rep sign in');
+  if(role==='lecturer' && isLecturer()) return renderLecturer();
+  if(role==='class_rep' && isClassRep()) return renderRep();
+  if(!state.staff) return renderNoRole();
+  return renderWrongTab();
 }
 
 async function afterSignIn(session){
   await loadStaff(session);
   if(state.staff?.campus_id && state.staff.role!=='super_admin') await ensureCampus(state.staff.campus_id);
+  if(state.staff && TAB_FOR[state.staff.role] && state.caps.campuses){ await setTab(TAB_FOR[state.staff.role]); return; }
   render();
+}
+
+function renderWrongTab(){
+  const wrap = document.createElement('div');
+  const tab = TAB_FOR[state.staff.role];
+  wrap.innerHTML = `<div class="adminlock card" style="text-align:left;">
+    <h2><span class="htitle">Signed in as ${esc(ROLE_LABEL[state.staff.role] || state.staff.role)}</span></h2>
+    <p>Your tools are under the <b>${esc(TAB_LABEL[tab])}</b> tab.</p>
+    <div class="row"><button class="btn" id="goHomeTab">Open ${esc(TAB_LABEL[tab])}</button><button class="btn secondary" id="signOutBtn">Sign out</button></div>
+  </div>`;
+  setTimeout(()=>{
+    document.getElementById('goHomeTab').onclick = ()=>setTab(tab);
+    document.getElementById('signOutBtn').onclick = signOut;
+  },0);
+  return wrap;
 }
 
 export async function signOut(){
@@ -26,11 +58,11 @@ export async function signOut(){
   render();
 }
 
-function renderSignIn(){
+function renderSignIn(title){
   const wrap = document.createElement('div');
   const canSignUp = state.caps.campuses;
   wrap.innerHTML = `<div class="adminlock card">
-    <h2 style="justify-content:center;"><span class="htitle">${canSignUp ? 'Staff sign in' : 'Admin sign in'}</span></h2>
+    <h2 style="justify-content:center;"><span class="htitle">${esc(canSignUp ? title : 'Admin sign in')}</span></h2>
     <div class="field"><label for="adminEmail">Email</label><input id="adminEmail" type="email" autocomplete="username" placeholder="you@example.com"></div>
     <div class="field"><label for="adminPass">Password</label><input id="adminPass" type="password" autocomplete="current-password"></div>
     <button class="btn terracotta" id="adminGoBtn" style="width:100%;">Sign in</button>

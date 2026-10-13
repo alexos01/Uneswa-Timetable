@@ -37,7 +37,7 @@ export function renderLecturer(){
   return wrap;
 }
 
-function renderSessionsEditor(codes){
+export function renderSessionsEditor(codes){
   const card = document.createElement('div'); card.className = 'card';
   card.innerHTML = `<h2><span class="htitle">Your modules</span> <span class="pill">${codes.length}</span></h2>
     <div class="muted" style="margin-bottom:10px;">Changing a session here moves it for every student on this module, every week. For a one-off change, post a notice instead.</div>`;

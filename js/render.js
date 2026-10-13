@@ -1,9 +1,9 @@
 import { sb, campusName, ensureCampus, isAdmin, isLecturer, isClassRep } from './db.js';
 import { state } from './state.js';
 import { esc } from './util.js';
-import { renderStaff } from './views/staff.js';
+import { renderRoleTab, renderStaff } from './views/staff.js';
 import { renderStudent } from './views/student.js';
-import { renderAnnouncements } from './views/announcements.js';
+import { renderAnnouncements, studentAnnouncements } from './views/announcements.js';
 import { renderFooter } from './views/footer.js';
 
 /* ---------------- config gate ---------------- */
@@ -23,6 +23,8 @@ const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";</pre>
 function tabList(){
   const tabs = [['student','My Timetable']];
   if(state.caps.notices) tabs.push(['announcements', 'Announcements']);
+  if(state.caps.campuses) tabs.push(['lecturer', 'Lecturer']);
+  if(state.caps.v3) tabs.push(['rep', 'Class rep']);
   tabs.push(['staff', state.caps.campuses ? 'Staff' : 'Admin']);
   return tabs;
 }
@@ -32,7 +34,7 @@ export async function setTab(t){
   state.tab = t;
   try{
     if(t==='student' && state.currentStudent?.campus_id) await ensureCampus(state.currentStudent.campus_id);
-    if(t==='staff' && state.staff?.campus_id && (isLecturer() || isClassRep() || (isAdmin() && state.staff.role!=='super_admin'))) await ensureCampus(state.staff.campus_id);
+    if(['staff','lecturer','rep'].includes(t) && state.staff?.campus_id && (isLecturer() || isClassRep() || (isAdmin() && state.staff.role!=='super_admin'))) await ensureCampus(state.staff.campus_id);
   }catch(err){ console.error(err); }
   render();
 }
@@ -40,7 +42,7 @@ export async function setTab(t){
 function renderTabs(){
   const el = document.getElementById('tabs');
   el.innerHTML = tabList().map(([id,label])=>{
-    const count = id==='announcements' ? state.announcements.length : 0;
+    const count = id==='announcements' ? studentAnnouncements().length : 0;
     return `<button data-tab="${id}" id="tab-${id}" class="${state.tab===id?'active':''}">${esc(label)}${count?` <span class="tabcount">${count}</span>`:''}</button>`;
   }).join('');
   el.querySelectorAll('button').forEach(b=>{ b.onclick = ()=>setTab(b.getAttribute('data-tab')); });
@@ -69,6 +71,8 @@ export function render(){
   if(!sb){ main.appendChild(renderNoConfig()); return; }
   renderTabs();
   if(state.tab==='announcements' && state.caps.notices) main.appendChild(renderAnnouncements());
+  else if(state.tab==='lecturer' && state.caps.campuses) main.appendChild(renderRoleTab('lecturer'));
+  else if(state.tab==='rep' && state.caps.v3) main.appendChild(renderRoleTab('class_rep'));
   else if(state.tab==='staff') main.appendChild(renderStaff());
   else main.appendChild(renderStudent());
   renderFooter();
