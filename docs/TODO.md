@@ -1,14 +1,14 @@
 # To do: Lwandile
 
-The mobile app work is on `main`. The live site runs the new code in single-campus mode until step 1 is done. Background is in [`docs/system-design.html`](docs/system-design.html), and setup and release steps are in [`README.md`](README.md).
+The mobile app work is on `main`. The live site runs the new code in single-campus mode until step 1 is done. Background is in [`docs/system-design.html`](system-design.html), and setup and release steps are in [`README.md`](../README.md).
 
 ## 1. Run the database migrations
 
 Nothing else in this list works until this is done.
 
 - [ ] In the Supabase dashboard, open **Authentication → Users** and delete any test accounts. **Every account listed there becomes a super admin** when the migration runs.
-- [ ] Open **SQL Editor → New query**, paste [`supabase/migrations/001_campuses_and_roles.sql`](supabase/migrations/001_campuses_and_roles.sql) and click **Run**.
-- [ ] In a new query, run [`supabase/migrations/002_announcements_and_notices.sql`](supabase/migrations/002_announcements_and_notices.sql).
+- [ ] Open **SQL Editor → New query**, paste [`supabase/migrations/001_campuses_and_roles.sql`](../supabase/migrations/001_campuses_and_roles.sql) and click **Run**.
+- [ ] In a new query, run [`supabase/migrations/002_announcements_and_notices.sql`](../supabase/migrations/002_announcements_and_notices.sql).
 - [ ] Reload the site. The header should now say **Kwaluseni campus**, and the top tabs should be **My Timetable · Announcements · Staff**.
 
 Both files are safe to run again if something goes wrong halfway.
