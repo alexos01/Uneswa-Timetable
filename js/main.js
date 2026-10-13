@@ -39,7 +39,7 @@ function readLocal(key){ try{ return localStorage.getItem(key); }catch{ return n
     subscribeRealtime();
   }catch(err){
     console.error(err);
-    const savedAt = restoreSnapshot(lastId);
+    const savedAt = await restoreSnapshot(lastId);
     toast(savedAt
       ? `You're offline. Showing your timetable saved ${new Date(savedAt).toLocaleString()}.`
       : 'Could not reach the timetable server. Check your connection and reload.');

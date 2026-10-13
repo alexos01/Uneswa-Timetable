@@ -29,6 +29,7 @@ const APP_FILES = [
   'js/reminders.js',
   'js/render.js',
   'js/state.js',
+  'js/store.js',
   'js/util.js',
   'js/views/admin-entries.js',
   'js/views/admin-notices.js',
