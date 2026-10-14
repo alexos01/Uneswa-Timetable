@@ -15,9 +15,9 @@ export function renderAdminSettings(){
     <div class="divider"></div>
     <h2><span class="htitle">Clean up duplicate entries</span></h2>
     ${(modDupeCount+examDupeCount) > 0
-      ? `<div class="warnbox">Found ${modDupeCount} duplicate class session(s) and ${examDupeCount} duplicate exam entr${examDupeCount===1?'y':'ies'} — likely from bulk-importing the same file more than once. This removes the extras and keeps one copy of each.</div>
+      ? `<div class="warnbox">Found ${modDupeCount} duplicate class session(s) and ${examDupeCount} duplicate exam entr${examDupeCount===1?'y':'ies'}, probably from importing the same file more than once. This removes the extras and keeps one copy of each.</div>
          <button class="btn danger" id="cleanupBtn">Remove ${modDupeCount+examDupeCount} duplicate entries</button>`
-      : `<div class="infobox">No duplicates found — the timetable looks clean.</div>`}
+      : `<div class="infobox">No duplicates found.</div>`}
     <div id="cleanupStatus" class="muted" style="margin-top:8px;font-weight:600;"></div>
 
     <div class="divider"></div>

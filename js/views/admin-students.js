@@ -24,7 +24,7 @@ export function renderAdminStudents(){
   function refresh(){
     const rows = state.students.filter(s=>matches(s,state.studentSearch));
     card.querySelector('#stuRows').innerHTML = rows.map(s=>`<tr>
-      <td>${esc(s.id)}</td><td>${esc(s.name||'—')}</td><td>${esc(progName(s.programme_id))}</td>
+      <td>${esc(s.id)}</td><td>${s.name ? esc(s.name) : '<span class="muted">No name given</span>'}</td><td>${esc(progName(s.programme_id))}</td>
       <td>${(s.module_ids||[]).length}</td><td>${s.updated_at?new Date(s.updated_at).toLocaleDateString():''}</td>
       <td class="row"><button class="btn small secondary" data-edit="${esc(s.id)}">Edit</button>
       <button class="btn small danger" data-del="${esc(s.id)}">Delete</button></td></tr>`).join('')

@@ -92,7 +92,7 @@ export function renderAdminEntries(kind){
     <div class="divider"></div>
     <div class="field"><label for="bulkArea">Or paste lines, one entry per line</label>
       <textarea id="bulkArea" style="min-height:120px;" placeholder="${isMod?'ACF411, Monday, 07:00, 07:50, G.005/G.006, Bachelor of Commerce':'ACF411, 2026-12-05, 09:00, 12:00, MPH, Bachelor of Commerce'}"></textarea>
-      <div class="muted" style="margin-top:4px;">Format: ${isMod?'code, day, start, end, venue, course name':'code, date (YYYY-MM-DD), start, end, venue, course name'}. Unknown course names are created automatically (with no faculty — assign one in Faculties &amp; Courses). Works for a handful of lines or several thousand at once.</div>
+      <div class="muted" style="margin-top:4px;">Format: ${isMod?'code, day, start, end, venue, course name':'code, date (YYYY-MM-DD), start, end, venue, course name'}. Unknown course names are created automatically, with no faculty; assign one in Faculties &amp; Courses. Works for a handful of lines or several thousand at once.</div>
     </div>
     <div class="row"><button class="btn terracotta" id="importBtn">Import lines</button></div>
     <div class="muted" id="importStatus" style="margin-top:8px;font-weight:600;"></div>
@@ -122,12 +122,12 @@ export function renderAdminEntries(kind){
     const statusEl = card.querySelector('#importStatus');
     const btn = card.querySelector('#importBtn');
     const deleteAllBtn = card.querySelector('#deleteAllBtn');
-    const report = r=>`Done — ${r.inserted} imported${r.duplicates?`, ${r.duplicates} duplicates skipped`:''}${r.failed?`, ${r.failed} failed (see console)`:''}`;
+    const report = r=>`Done: ${r.inserted} imported${r.duplicates?`, ${r.duplicates} duplicates skipped`:''}${r.failed?`, ${r.failed} failed (see console)`:''}`;
     if(deleteAllBtn) deleteAllBtn.onclick = async ()=>{
       if(!confirm(`Delete all ${list.length} ${isMod?'class':'exam'} entries? This cannot be undone.`)) return;
       deleteAllBtn.disabled = true; deleteAllBtn.textContent = 'Deleting…';
       const { error } = await scoped(sb.from(isMod?'modules':'exams').delete().neq('id','00000000-0000-0000-0000-000000000000'));
-      if(error){ console.error(error); toast('Delete failed — see console'); deleteAllBtn.disabled=false; }
+      if(error){ console.error(error); toast('Delete failed. The browser console has the details.'); deleteAllBtn.disabled=false; }
       else toast('All entries deleted');
     };
 
@@ -168,7 +168,7 @@ export function renderAdminEntries(kind){
       const raw = card.querySelector('#bulkArea').value.trim();
       if(!raw) return;
       const { rows, errors } = timetableRows(parseCsv(raw), kind);
-      if(rows.length===0){ toast('Nothing valid to import — check the line format'); statusEl.innerHTML = problemsHtml(errors); return; }
+      if(rows.length===0){ toast('Nothing to import. Check the line format.'); statusEl.innerHTML = problemsHtml(errors); return; }
       btn.disabled = true;
       try{
         const r = await importRows(kind, rows, list, statusEl);

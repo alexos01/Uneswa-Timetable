@@ -17,7 +17,7 @@ export function getOllamaConfig(){
 }
 export async function callClaudeBYOK(promptText){
   const key = getAnthropicKey();
-  if(!key) throw new Error('No API key saved — paste it above and click "Save settings" first.');
+  if(!key) throw new Error('No API key saved. Paste it above and click "Save settings" first.');
   let res;
   try{
     res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -37,15 +37,15 @@ export async function callClaudeBYOK(promptText){
   try{ data = await res.json(); }catch(e){ throw new Error('Anthropic API returned an unreadable response (HTTP '+res.status+').'); }
   if(!res.ok || data.error){
     const msg = (data.error && data.error.message) || ('HTTP '+res.status);
-    if(res.status===401) throw new Error('Authentication failed — double-check your API key is correct and active. (' + msg + ')');
-    if(res.status===400 && /credit|billing/i.test(msg)) throw new Error('Your Anthropic account has no API credit yet — add a payment method at console.anthropic.com. (' + msg + ')');
+    if(res.status===401) throw new Error('Authentication failed. Check that your API key is correct and active. (' + msg + ')');
+    if(res.status===400 && /credit|billing/i.test(msg)) throw new Error('Your Anthropic account has no API credit yet. Add a payment method at console.anthropic.com. (' + msg + ')');
     throw new Error(msg);
   }
   return (data.content||[]).map(b=>b.text||'').join('\n');
 }
 export async function callOllama(promptText){
   const { baseUrl, apiKey, model } = getOllamaConfig();
-  if(!model) throw new Error('No Ollama model name saved — enter one (e.g. gpt-oss:20b for cloud, or llama3.1 for local) and click "Save settings".');
+  if(!model) throw new Error('No Ollama model name saved. Enter one (e.g. gpt-oss:20b for cloud, or llama3.1 for local) and click "Save settings".');
   const url = baseUrl.replace(/\/+$/,'') + '/v1/chat/completions';
   let res;
   try{
@@ -57,15 +57,15 @@ export async function callOllama(promptText){
   }catch(networkErr){
     const hint = baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')
       ? ' Make sure Ollama is running on this computer and started with OLLAMA_ORIGINS set to allow this site (see the note below the fields).'
-      : ' This may be a CORS restriction on Ollama Cloud from a browser — if it keeps failing, try running Ollama locally instead (free, and CORS-friendly once configured).';
+      : ' This may be a CORS restriction on Ollama Cloud from a browser. If it keeps failing, run Ollama locally instead (free, and CORS-friendly once configured).';
     throw new Error('Could not reach Ollama at ' + url + '.' + hint);
   }
   let data;
   try{ data = await res.json(); }catch(e){ throw new Error('Ollama returned an unreadable response (HTTP '+res.status+').'); }
   if(!res.ok || data.error){
     const msg = (data.error && (data.error.message||data.error)) || ('HTTP '+res.status);
-    if(res.status===401) throw new Error('Authentication failed — check your Ollama Cloud API key. (' + msg + ')');
-    if(res.status===404) throw new Error('Model not found — pull/select it first (locally: "ollama pull '+model+'"). (' + msg + ')');
+    if(res.status===401) throw new Error('Authentication failed. Check your Ollama Cloud API key. (' + msg + ')');
+    if(res.status===404) throw new Error('Model not found. Pull or select it first (locally: "ollama pull '+model+'"). (' + msg + ')');
     throw new Error(msg);
   }
   return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
@@ -78,7 +78,7 @@ export function getGeminiConfig(){
 }
 export async function callGemini(promptText){
   const { apiKey, model } = getGeminiConfig();
-  if(!apiKey) throw new Error('No Gemini API key saved — paste it above and click "Save settings" first.');
+  if(!apiKey) throw new Error('No Gemini API key saved. Paste it above and click "Save settings" first.');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
   let res;
   try{
@@ -94,9 +94,9 @@ export async function callGemini(promptText){
   try{ data = await res.json(); }catch(e){ throw new Error('Gemini API returned an unreadable response (HTTP '+res.status+').'); }
   if(!res.ok || data.error){
     const msg = (data.error && data.error.message) || ('HTTP '+res.status);
-    if(res.status===400 && /API key/i.test(msg)) throw new Error('Invalid API key — double-check it at aistudio.google.com/apikey. (' + msg + ')');
-    if(res.status===404) throw new Error('Model "'+model+'" not found — try "gemini-2.5-flash" or check current model names at ai.google.dev. (' + msg + ')');
-    if(res.status===429) throw new Error('Rate limit or free-tier quota hit — wait a bit and try again, or fewer chunks at once. (' + msg + ')');
+    if(res.status===400 && /API key/i.test(msg)) throw new Error('Invalid API key. Check it at aistudio.google.com/apikey. (' + msg + ')');
+    if(res.status===404) throw new Error('Model "'+model+'" not found. Try "gemini-2.5-flash" or check current model names at ai.google.dev. (' + msg + ')');
+    if(res.status===429) throw new Error('Rate limit or free-tier quota reached. Wait a minute and try again, or send fewer chunks at once. (' + msg + ')');
     throw new Error(msg);
   }
   const cand = data.candidates && data.candidates[0];
@@ -111,7 +111,7 @@ export function getOpenRouterConfig(){
 }
 export async function callOpenRouter(promptText){
   const { apiKey, model } = getOpenRouterConfig();
-  if(!apiKey) throw new Error('No OpenRouter API key saved — paste it above and click "Save settings" first.');
+  if(!apiKey) throw new Error('No OpenRouter API key saved. Paste it above and click "Save settings" first.');
   let res;
   try{
     res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -131,9 +131,9 @@ export async function callOpenRouter(promptText){
   try{ data = await res.json(); }catch(e){ throw new Error('OpenRouter returned an unreadable response (HTTP '+res.status+').'); }
   if(!res.ok || data.error){
     const msg = (data.error && (data.error.message||data.error)) || ('HTTP '+res.status);
-    if(res.status===401) throw new Error('Authentication failed — check your OpenRouter API key. (' + msg + ')');
-    if(res.status===402) throw new Error('That model needs credits — switch the model to "openrouter/free" or add credit at openrouter.ai. (' + msg + ')');
-    if(res.status===429) throw new Error('Rate limit hit on OpenRouter — wait a bit and try again. (' + msg + ')');
+    if(res.status===401) throw new Error('Authentication failed. Check your OpenRouter API key. (' + msg + ')');
+    if(res.status===402) throw new Error('That model needs credits. Switch the model to "openrouter/free" or add credit at openrouter.ai. (' + msg + ')');
+    if(res.status===429) throw new Error('OpenRouter rate limit reached. Wait a minute and try again. (' + msg + ')');
     throw new Error(msg);
   }
   return (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
@@ -212,14 +212,14 @@ export function renderAiImport(){
   const geminiCfg = getGeminiConfig();
   const openrouterCfg = getOpenRouterConfig();
   card.innerHTML = `<h2><span class="htitle">AI Import</span></h2>
-    <div class="infobox">Upload a timetable PDF (or paste text). The AI reads it and proposes structured entries — nothing is published until you review and confirm them.</div>
+    <div class="infobox">Upload a timetable PDF (or paste text). The AI reads it and proposes entries. Nothing is published until you review and confirm them.</div>
 
     <div class="field"><label>AI provider</label>
       <select id="aiProviderSel">
-        <option value="anthropic" ${provider==='anthropic'?'selected':''}>Anthropic (Claude) — paid API key</option>
-        <option value="gemini" ${provider==='gemini'?'selected':''}>Google Gemini — free tier</option>
-        <option value="openrouter" ${provider==='openrouter'?'selected':''}>OpenRouter — free router model</option>
-        <option value="ollama" ${provider==='ollama'?'selected':''}>Ollama — free (cloud key or local, no cost)</option>
+        <option value="anthropic" ${provider==='anthropic'?'selected':''}>Anthropic (Claude): paid API key</option>
+        <option value="gemini" ${provider==='gemini'?'selected':''}>Google Gemini: free tier</option>
+        <option value="openrouter" ${provider==='openrouter'?'selected':''}>OpenRouter: free router model</option>
+        <option value="ollama" ${provider==='ollama'?'selected':''}>Ollama: free, cloud key or local</option>
       </select></div>
 
     <div id="providerFieldsWrap"></div>
@@ -235,7 +235,7 @@ export function renderAiImport(){
     </div>
     <div class="field"><label>Upload PDF (optional)</label><input type="file" id="aiPdfInput" accept="application/pdf"></div>
     <div id="aiPageSelectWrap"></div>
-    <div class="field"><label>Text to parse — auto-filled from the PDF page you pick above, or paste your own</label><textarea id="aiPasteArea" style="min-height:140px;" placeholder="Paste a page or section of the released timetable here">${esc(state.aiPasteText)}</textarea></div>
+    <div class="field"><label>Text to parse: filled in from the PDF page you pick above, or paste your own</label><textarea id="aiPasteArea" style="min-height:140px;" placeholder="Paste a page or section of the released timetable here">${esc(state.aiPasteText)}</textarea></div>
     <div class="row"><button class="btn terracotta" id="aiParseBtn">Parse with AI</button></div>
     <div id="aiStatusLine" class="muted" style="margin-top:10px;font-weight:600;"></div>
     <div id="aiDebugWrap" style="margin-top:10px;"></div>
@@ -247,10 +247,10 @@ export function renderAiImport(){
     const w = card.querySelector('#aiDebugWrap');
     if(!state.aiDebugRaw.length){ w.innerHTML=''; return; }
     w.innerHTML = `<details class="warnbox" style="cursor:pointer;">
-      <summary style="font-weight:700;">Found 0 entries — click to see what the AI actually replied (for debugging)</summary>
+      <summary style="font-weight:700;">Found 0 entries. Open to see what the AI replied</summary>
       ${state.aiDebugRaw.slice(0,3).map((d,i)=>`
         <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--terracotta);">
-          <div style="font-weight:600;">Attempt ${i+1} — text sent (first 200 chars):</div>
+          <div style="font-weight:600;">Attempt ${i+1}, text sent (first 200 characters):</div>
           <pre style="white-space:pre-wrap;font-size:11px;background:#fff;padding:8px;border-radius:6px;">${esc(d.chunk)}</pre>
           <div style="font-weight:600;margin-top:6px;">AI's raw response:</div>
           <pre style="white-space:pre-wrap;font-size:11px;background:#fff;padding:8px;border-radius:6px;">${esc(d.response || '(empty response)')}</pre>
@@ -263,7 +263,7 @@ export function renderAiImport(){
     if(state.aiPending.length===0){ w.innerHTML=''; return; }
     const isMod = state.aiImportKind==='modules';
     w.innerHTML = `<h2><span class="htitle">Review before publishing</span> <span class="pill outline">${state.aiPending.length} proposed</span></h2>
-      <div class="warnbox">Double-check times and venues — text extracted from PDFs can shift columns. Uncheck or edit anything wrong before adding.</div>
+      <div class="warnbox">Check times and venues: text taken from a PDF can shift columns. Uncheck or edit anything wrong before adding.</div>
       <div class="tablewrap"><table class="admintbl"><thead><tr>
         <th></th><th>Code</th><th>${isMod?'Day':'Date'}</th><th>Start</th><th>End</th><th>Venue</th><th></th>
       </tr></thead><tbody id="pendingRows"></tbody></table></div>
@@ -279,7 +279,7 @@ export function renderAiImport(){
       <td><input data-i="${i}" data-f="start" value="${esc(p.start)}" style="width:70px;padding:4px;border:1px solid var(--line);border-radius:6px;"></td>
       <td><input data-i="${i}" data-f="end" value="${esc(p.end)}" style="width:70px;padding:4px;border:1px solid var(--line);border-radius:6px;"></td>
       <td><input data-i="${i}" data-f="venue" value="${esc(p.venue)}" style="width:110px;padding:4px;border:1px solid var(--line);border-radius:6px;"></td>
-      <td><button class="btn small danger" data-del="${i}">✕</button></td>
+      <td><button class="btn small danger" data-del="${i}">Remove</button></td>
     </tr>`).join('');
     tb.querySelectorAll('.pinc').forEach(cb=>{ cb.onchange = e=>{ state.aiPending[Number(e.target.dataset.i)].included = e.target.checked; }; });
     tb.querySelectorAll('input[data-f]').forEach(inp=>{ inp.oninput = e=>{ state.aiPending[Number(e.target.dataset.i)][e.target.dataset.f] = e.target.value; }; });
@@ -336,8 +336,8 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
     const programme = card.querySelector('#aiProg').value.trim() || state.aiImportProgramme || 'Unspecified';
     const faculty = card.querySelector('#aiFac').value.trim() || state.aiImportFaculty || '';
     state.aiImportProgramme = programme; state.aiImportFaculty = faculty;
-    if(!rawText || rawText.trim().length<10){ toast('Nothing to parse — paste text or pick a PDF page first'); return; }
-    if(state.aiBusy){ toast('Already parsing — please wait for it to finish.'); return; }
+    if(!rawText || rawText.trim().length<10){ toast('Nothing to read yet. Paste text or pick a PDF page first.'); return; }
+    if(state.aiBusy){ toast('Still reading the last one. Wait for it to finish.'); return; }
     state.aiBusy = true;
     state.aiDebugRaw = [];
     const btn = card.querySelector('#aiParseBtn');
@@ -366,7 +366,7 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
       }
       state.aiPending = state.aiPending.concat(newEntries);
       const totalSecs = Math.round((Date.now()-startedAt)/1000);
-      state.aiStatus = `Done in ${totalSecs}s — ${newEntries.length} entries proposed.` + (newEntries.length ? ' Review below.' : ' See debug details below.');
+      state.aiStatus = `Done in ${totalSecs}s: ${newEntries.length} entries proposed.` + (newEntries.length ? ' Review below.' : ' See debug details below.');
       toast(state.aiStatus);
     }catch(err){
       console.error(err);
@@ -383,7 +383,7 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
     if(p==='anthropic'){
       w.innerHTML = `<div class="field"><label>Your Anthropic API key</label>
         <input id="anthKey" type="password" placeholder="sk-ant-..." value="${hasKey?'••••••••••••••••':''}">
-        <div class="muted" style="margin-top:4px;">Stored only in your browser. Get one at console.anthropic.com — each import uses a small amount of paid API credit on your account.</div></div>`;
+        <div class="muted" style="margin-top:4px;">Stored only in your browser. Get one at console.anthropic.com. Each import uses a little paid API credit on your account.</div></div>`;
     } else if(p==='gemini'){
       w.innerHTML = `<div class="row">
           <div class="field" style="flex:1;"><label>Your Gemini API key</label>
@@ -391,7 +391,7 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
           <div class="field" style="flex:1;"><label>Model name</label>
             <input id="gemModel" value="${esc(geminiCfg.model)}" placeholder="gemini-2.5-flash"></div>
         </div>
-        <div class="muted" style="margin-top:2px;">Free at aistudio.google.com/apikey — Gemini's free tier has generous daily limits for a task like this. If you hit "rate limit" errors, just wait a minute and retry.</div>`;
+        <div class="muted" style="margin-top:2px;">Free at aistudio.google.com/apikey. Gemini's free tier has generous daily limits for a task like this. If you hit "rate limit" errors, just wait a minute and retry.</div>`;
     } else if(p==='openrouter'){
       w.innerHTML = `<div class="row">
           <div class="field" style="flex:1;"><label>Your OpenRouter API key</label>
@@ -399,7 +399,7 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
           <div class="field" style="flex:1;"><label>Model</label>
             <input id="orModel" value="${esc(openrouterCfg.model)}" placeholder="openrouter/free"></div>
         </div>
-        <div class="muted" style="margin-top:2px;">Free key at openrouter.ai/keys. Leave the model as <code>openrouter/free</code> to let OpenRouter auto-pick a free model — or browse openrouter.ai/models and pick a specific one ending in <code>:free</code>.</div>`;
+        <div class="muted" style="margin-top:2px;">Free key at openrouter.ai/keys. Leave the model as <code>openrouter/free</code> to let OpenRouter pick a free model, or browse openrouter.ai/models and pick a specific one ending in <code>:free</code>.</div>`;
     } else {
       w.innerHTML = `<div class="row">
           <div class="field" style="flex:1;"><label>Ollama base URL</label>
@@ -450,7 +450,7 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
       try{
         const pages = await extractPdfPages(file);
         state.aiPages = pages.map((t,i)=>({index:i+1,text:t}));
-        state.aiStatus = pages.length+' page(s) extracted — pick one below, or it defaults to page 1.';
+        state.aiStatus = pages.length+' page(s) read. Pick one below; page 1 is used otherwise.';
         if(state.aiPages.length){ state.aiPasteText = state.aiPages[0].text; }
       }catch(err){ console.error(err); state.aiStatus='Could not read that PDF.'; }
       render();
@@ -458,7 +458,7 @@ Return ONLY a JSON array, no prose, no markdown fences, of objects: {"code":"...
     const pw = card.querySelector('#aiPageSelectWrap');
     if(state.aiPages.length > 1){
       pw.innerHTML = `<div class="field"><label>PDF page to load into the box below</label>
-        <select id="aiPageSel">${state.aiPages.map(p=>`<option value="${p.index}">Page ${p.index} — ${esc(p.text.slice(0,60))}…</option>`).join('')}</select></div>`;
+        <select id="aiPageSel">${state.aiPages.map(p=>`<option value="${p.index}">Page ${p.index}: ${esc(p.text.slice(0,60))}…</option>`).join('')}</select></div>`;
       pw.querySelector('#aiPageSel').onchange = (e)=>{
         const p = state.aiPages.find(x=>x.index===Number(e.target.value));
         if(p){ state.aiPasteText = p.text; card.querySelector('#aiPasteArea').value = p.text; }

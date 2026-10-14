@@ -37,11 +37,11 @@ export async function renderAdminStaff(){
       const mine = assignments.filter(a=>a.user_id===s.user_id).map(a=>a.code).sort();
       const canRemove = s.user_id!==me && (isSuperAdmin() || ASSIGNABLE.includes(s.role));
       return `<tr>
-        <td><b>${esc(s.display_name || '—')}</b><div class="muted">${esc(s.email||'')}</div></td>
+        <td><b>${esc(s.display_name || s.email || '')}</b>${s.display_name ? `<div class="muted">${esc(s.email||'')}</div>` : ''}</td>
         <td>${esc(ROLE_LABEL[s.role]||s.role)}${s.role==='super_admin'?'<div class="muted">all campuses</div>':''}</td>
         <td>${ASSIGNABLE.includes(s.role) ? `${mine.map(c=>`<span class="modchip">${esc(c)} <button class="chipx" aria-label="Unassign ${esc(c)}" data-unassign="${esc(s.user_id)}|${esc(c)}">×</button></span>`).join('')}
             <div class="row" style="margin-top:6px;"><input list="codeList" data-assigninput="${esc(s.user_id)}" placeholder="Module code" style="width:120px;padding:5px;border:1px solid var(--line);border-radius:7px;">
-            <button class="btn small secondary" data-assign="${esc(s.user_id)}">Assign</button></div>` : '<span class="muted">—</span>'}</td>
+            <button class="btn small secondary" data-assign="${esc(s.user_id)}">Assign</button></div>` : '<span class="muted">All modules</span>'}</td>
         <td>${canRemove?`<button class="btn small danger" data-remove="${esc(s.user_id)}">Remove</button>`:''}</td>
       </tr>`;
     }).join('') || `<tr><td colspan="4" class="muted" style="padding:14px;">No staff on this campus yet.</td></tr>`}</tbody></table></div>

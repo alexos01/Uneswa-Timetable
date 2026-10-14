@@ -36,7 +36,7 @@ test('admin uploads the official class timetable as CSV, previews it, then impor
   assert.equal((await tables(page)).modules.filter(m=>m.code.startsWith('PHY')).length, 0, 'nothing written before confirming');
 
   await page.click('#csvImport');
-  await page.waitForFunction(()=>/Done — 2 imported, 1 duplicates skipped/.test(document.querySelector('#importStatus').textContent));
+  await page.waitForFunction(()=>/Done: 2 imported, 1 duplicates skipped/.test(document.querySelector('#importStatus').textContent));
   const db = await tables(page);
   const phy = db.modules.filter(m=>m.code.startsWith('PHY')).map(m=>[m.code, m.day, m.start_time, m.end_time, m.venue, m.campus_id]);
   assert.deepEqual(phy, [
