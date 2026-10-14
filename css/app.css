@@ -20,13 +20,14 @@ a{color:var(--terracotta);}
 
 .topbar{background:var(--forest);color:#fff;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;}
 .brand{display:flex;align-items:center;gap:10px;}
-.brand .mark{width:34px;height:34px;border-radius:9px;background:var(--mustard);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:800;color:var(--forest-deep);font-size:16px;}
+.brand .mark{width:46px;height:46px;margin:-5px -3px -5px -5px;display:block;} /* the icon has its own padding */
 .brand h1{font-size:20px;margin:0;font-weight:700;letter-spacing:-.01em;}
 .brand small{color:#C9D6C4;font-size:12px;}
 .is-offline .brand small{color:var(--mustard);}
-.tabs{display:flex;gap:4px;background:rgba(255,255,255,.1);padding:4px;border-radius:999px;}
-.tabs button{background:transparent;border:none;color:#D7E0D2;padding:9px 18px;border-radius:999px;font-size:13px;font-weight:600;}
-.tabs button.active{background:var(--mustard);color:var(--forest-deep);}
+.tabs{display:flex;gap:22px;align-self:flex-end;margin-bottom:-16px;}
+.tabs button{background:transparent;border:none;border-radius:0;color:#C9D6C4;padding:10px 0 15px;font-size:14px;font-weight:600;}
+.tabs button:hover{color:#fff;}
+.tabs button.active{color:#fff;box-shadow:inset 0 -3px 0 var(--mustard);}
 .installbtn{margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.4);color:#fff;padding:7px 14px;border-radius:999px;font-size:12px;font-weight:600;}
 .installbtn[hidden]{display:none;}
 
@@ -80,7 +81,7 @@ main{max-width:1220px;margin:0 auto;padding:24px;}
 .coursegroup{border:1px solid var(--line);border-radius:11px;padding:12px 14px;margin-bottom:10px;}
 .coursegroup .cgtitle{font-family:var(--font-display);font-weight:700;font-size:15px;color:var(--forest-deep);}
 .coursegroup .cgfac{font-size:13px;color:var(--ink-soft);margin:1px 0 8px;}
-.modchip{display:inline-block;background:var(--forest);color:#fff;font-size:11.5px;padding:3px 9px;border-radius:999px;margin:3px 4px 0 0;}
+.modchip{display:inline-block;background:#E3ECE6;color:var(--forest-deep);font-size:12.5px;font-weight:700;padding:2px 8px;border-radius:5px;margin:4px 4px 0 0;}
 
 table.grid{width:100%;border-collapse:collapse;font-size:12.5px;}
 table.grid th{background:var(--paper);font-weight:600;padding:7px;border:1px solid var(--line);text-align:left;font-size:11px;color:var(--ink-soft);}
@@ -123,7 +124,7 @@ textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;
 
 /* ---------- campuses, staff, notices, announcements, footer ---------- */
 .tabcount{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:999px;background:var(--terracotta);color:#fff;font-size:11px;line-height:18px;}
-.tabs button.active .tabcount{background:var(--forest);}
+.tabs button.active .tabcount{background:var(--terracotta);}
 .staffbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
 .campusswitch{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);font-weight:600;}
 .campusswitch select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:13px;}
@@ -152,9 +153,9 @@ textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:9px;
 @media (max-width:600px){
   main{padding:16px;}
   .topbar{padding:12px 16px;}
-  .tabs{width:100%;overflow-x:auto;scrollbar-width:none;border-radius:14px;}
+  .tabs{width:100%;overflow-x:auto;scrollbar-width:none;gap:20px;margin-bottom:-12px;}
   .tabs::-webkit-scrollbar{display:none;}
-  .tabs button{flex:1 0 auto;padding:9px 12px;white-space:nowrap;}
+  .tabs button{flex:0 0 auto;white-space:nowrap;}
   table.grid{font-size:11px;min-width:560px;}
   .footinner{padding:18px 16px 24px;}
 }

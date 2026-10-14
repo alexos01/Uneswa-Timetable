@@ -6,7 +6,7 @@ import { renderStudent } from './views/student.js';
 import { renderAnnouncements, studentAnnouncements } from './views/announcements.js';
 import { renderFooter } from './views/footer.js';
 
-/* ---------------- config gate ---------------- */
+/* Config gate */
 export function renderNoConfig(){
   const wrap = document.createElement('div');
   wrap.className='card';
@@ -19,7 +19,7 @@ const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";</pre>
   return wrap;
 }
 
-/* ---------------- tabs ---------------- */
+/* Tabs */
 function tabList(){
   const tabs = [['student','My Timetable']];
   if(state.caps.notices) tabs.push(['announcements', 'Announcements']);
@@ -52,7 +52,7 @@ function semesterLine(){
   const parts = [];
   if(state.caps.campuses) parts.push(campusName(state.campusId) + ' campus');
   parts.push(state.meta.semester || 'Semester not set');
-  if(state.meta.updated_at) parts.push('updated ' + new Date(state.meta.updated_at).toLocaleDateString());
+  if(state.meta.updated_at) parts.push('updated ' + new Date(state.meta.updated_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }));
   if(state.offline) parts.push('offline');
   if(state.pendingSync) parts.push(`${state.pendingSync} change${state.pendingSync>1?'s':''} waiting to sync`);
   return parts.join(' · ');

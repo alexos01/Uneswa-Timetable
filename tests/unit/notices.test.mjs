@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { upcomingNotices, describeNotice, localIsoDate, noticeSummary, changeFor, unseenChanges, changeAlert } from '../../js/lib/notices.js';
+import { upcomingNotices, describeNotice, formatDay, localIsoDate, noticeSummary, changeFor, unseenChanges, changeAlert } from '../../js/lib/notices.js';
 
 const notices = [
   { code:'CSC111', kind:'test', notice_date:'2026-10-20', start_time:'10:00' },
@@ -17,7 +17,13 @@ test('only the student\'s codes, from today, soonest first', ()=>{
 test('describes a notice with a sensible default title', ()=>{
   const d = describeNotice(notices[0]);
   assert.equal(d.heading, 'CSC111 · Test');
-  assert.equal(d.when, '2026-10-20 10:00');
+  assert.equal(d.when, 'Tue 20 Oct, 10:00');
+});
+
+test('days read as local calendar dates, in one short format', ()=>{
+  assert.equal(formatDay('2026-12-05'), 'Sat 5 Dec');
+  assert.equal(formatDay('2026-01-01'), 'Thu 1 Jan');
+  assert.equal(formatDay(''), '');
 });
 
 test('local ISO date is zero padded', ()=>{

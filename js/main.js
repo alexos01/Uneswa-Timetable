@@ -29,7 +29,7 @@ async function connect(studentId){
   subscribeRealtime();
 }
 
-/* ================= INIT ================= */
+/* Init */
 (async function init(){
   await initShell({
     // Android back button: return to My Timetable before leaving the app.
@@ -51,7 +51,7 @@ async function connect(studentId){
     state.offline = true;
     state.pendingSync = (await pendingStudents()).length;
     toast(savedAt
-      ? `You're offline. Showing your timetable saved ${new Date(savedAt).toLocaleString()}.`
+      ? `You're offline. Showing your timetable saved ${new Date(savedAt).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}.`
       : 'Could not reach the timetable server. Check your connection and reload.');
   }
   render();

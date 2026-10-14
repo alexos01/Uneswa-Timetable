@@ -9,7 +9,7 @@ export function studentAnnouncements(){
   return visibleAnnouncements(state.announcements, state.currentStudent ? myModules(state.currentStudent) : []);
 }
 
-/* ================= ANNOUNCEMENTS (students) ================= */
+/* Announcements, as students see them */
 export function sortAnnouncements(list){
   return list.slice().sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0) || (b.created_at||'').localeCompare(a.created_at||''));
 }
@@ -17,7 +17,7 @@ export function sortAnnouncements(list){
 export function announcementCard(a, actionsHtml=''){
   const audience = a.programme_id ? `${progName(a.programme_id)}${a.year ? ' · '+yearLabel(a.year) : ''}`
     : a.campus_id ? `${campusName(a.campus_id)} campus` : 'All campuses';
-  const date = a.created_at ? new Date(a.created_at).toLocaleDateString(undefined, { day:'numeric', month:'short', year:'numeric' }) : '';
+  const date = a.created_at ? new Date(a.created_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : '';
   return `<article class="announcement${a.pinned?' pinned':''}">
     <div class="anmeta">${a.pinned?'<span class="tag">Pinned</span> ':''}${esc(audience)} · ${esc(date)}${a.author_name?` · ${esc(a.author_name)}`:''}</div>
     <h3>${esc(a.title)}</h3>

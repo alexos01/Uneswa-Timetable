@@ -62,7 +62,7 @@ export function buildTimetablePdf({ title, subtitle, sessions, exams = [], examT
   for(let i=1;i<=pageCount;i++){
     doc.setPage(i);
     doc.setFontSize(8); doc.setTextColor(140,140,140);
-    doc.text(`Generated ${new Date().toLocaleDateString()} · University of Eswatini`, 10, doc.internal.pageSize.getHeight()-6);
+    doc.text(`Generated ${new Date().toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' })} · University of Eswatini`, 10, doc.internal.pageSize.getHeight()-6);
   }
   return doc;
 }

@@ -12,9 +12,9 @@ import { render } from '../render.js';
 import { facName, moduleYear, progName, programmesInFaculty, state, yearLabel } from '../state.js';
 import { esc, toast } from '../util.js';
 import { searchModules, sortSessions } from '../lib/modules.js';
-import { changeFor, localIsoDate, noticeSummary } from '../lib/notices.js';
+import { changeFor, formatDay, localIsoDate, noticeSummary } from '../lib/notices.js';
 
-/* ================= STUDENT VIEW ================= */
+/* Student view */
 export function myModules(student){ return state.modules.filter(m => (student.module_ids||[]).includes(m.id)); }
 export function myExams(student){
   const codes = new Set(myModules(student).map(m=>m.code));
@@ -329,7 +329,7 @@ export function renderMyCourses(student){
 export function renderWeekGrid(student){
   const card=document.createElement('div'); card.className='card';
   const mods = myModules(student);
-  card.innerHTML = `<h2><span class="htitle">Weekly timetable</span> <button class="btn small terracotta" id="exportPdfBtn">Export PDF</button></h2>`;
+  card.innerHTML = `<h2><span class="htitle">Weekly timetable</span>${mods.length ? ' <button class="btn small terracotta" id="exportPdfBtn">Export PDF</button>' : ''}</h2>`;
   if(mods.length===0){ card.appendChild(Object.assign(document.createElement('div'),{className:'empty-state',textContent:'Your week fills in as you add modules.'})); return card; }
   const table=document.createElement('table'); table.className='grid';
   let thead='<tr><th class="timecol">Time</th>'+DAYS.map(d=>`<th>${d}</th>`).join('')+'</tr>';
@@ -359,7 +359,7 @@ export function renderExamsCard(student){
   else exams.forEach(e=>{
     const row=document.createElement('div'); row.className='examrow';
     row.innerHTML = `<span><b>${esc(e.code)}</b> &nbsp; <span class="muted">${esc(e.venue||'Venue TBC')}</span></span>
-      <span>${e.exam_date?new Date(e.exam_date).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'}):'TBC'} · ${esc(e.start_time||'')}</span>`;
+      <span>${e.exam_date?formatDay(e.exam_date):'Date to be confirmed'} · ${esc(e.start_time||'')}</span>`;
     card.appendChild(row);
   });
   return card;

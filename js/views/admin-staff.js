@@ -6,7 +6,7 @@ import { esc, toast } from '../util.js';
 export const ROLE_LABEL = { super_admin:'Super admin', campus_admin:'Campus admin', lecturer:'Lecturer', class_rep:'Class rep' };
 const ASSIGNABLE = ['lecturer', 'class_rep']; // roles that get module codes
 
-/* ---------------- Staff & lecturers ----------------
+/* Staff & lecturers
    Staff create their own account (Staff sign in -> Create a staff account); an admin
    then grants a role by email through the grant_staff_role() RPC, which checks on the
    server that the caller may grant it. */
@@ -39,7 +39,7 @@ export async function renderAdminStaff(){
       return `<tr>
         <td><b>${esc(s.display_name || s.email || '')}</b>${s.display_name ? `<div class="muted">${esc(s.email||'')}</div>` : ''}</td>
         <td>${esc(ROLE_LABEL[s.role]||s.role)}${s.role==='super_admin'?'<div class="muted">all campuses</div>':''}</td>
-        <td>${ASSIGNABLE.includes(s.role) ? `${mine.map(c=>`<span class="modchip">${esc(c)} <button class="chipx" aria-label="Unassign ${esc(c)}" data-unassign="${esc(s.user_id)}|${esc(c)}">×</button></span>`).join('')}
+        <td>${ASSIGNABLE.includes(s.role) ? `${mine.map(c=>`<span class="modchip">${esc(c)} <button class="chipx" aria-label="Unassign ${esc(c)}" data-unassign="${esc(s.user_id)}|${esc(c)}"><svg width="9" height="9" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></span>`).join('')}
             <div class="row" style="margin-top:6px;"><input list="codeList" data-assigninput="${esc(s.user_id)}" placeholder="Module code" style="width:120px;padding:5px;border:1px solid var(--line);border-radius:7px;">
             <button class="btn small secondary" data-assign="${esc(s.user_id)}">Assign</button></div>` : '<span class="muted">All modules</span>'}</td>
         <td>${canRemove?`<button class="btn small danger" data-remove="${esc(s.user_id)}">Remove</button>`:''}</td>

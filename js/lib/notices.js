@@ -13,6 +13,16 @@ export const NOTICE_KINDS = {
 export const CHANGE_KINDS = ['late', 'cancelled', 'moved'];
 export const DELAY_CHOICES = [5, 10, 15, 20, 30, 45, 60];
 
+const WEEKDAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+/** "2026-10-20" → "Tue 20 Oct", read as a local calendar date so no time zone can shift it. */
+export function formatDay(iso){
+  const [y, m, d] = String(iso || '').split('-').map(Number);
+  if(!y || !m || !d) return iso || '';
+  return `${WEEKDAY_SHORT[new Date(y, m-1, d).getDay()]} ${d} ${MONTH_SHORT[m-1]}`;
+}
+
 export function localIsoDate(d = new Date()){
   const p = n=>String(n).padStart(2,'0');
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
@@ -36,10 +46,10 @@ export function noticeSummary(n){
 
 export function describeNotice(n){
   const kind = NOTICE_KINDS[n.kind] || NOTICE_KINDS.note;
-  const time = n.start_time ? ` ${n.start_time}${n.end_time ? '–'+n.end_time : ''}` : '';
+  const time = n.start_time ? `, ${n.start_time}${n.end_time ? '–'+n.end_time : ''}` : '';
   const venue = n.venue ? ` · ${n.venue}` : '';
   const heading = n.kind === 'late' ? noticeSummary(n) + (n.title ? `: ${n.title}` : '') : (n.title || kind.verb);
-  return { kind, heading: `${n.code} · ${heading}`, when: `${n.notice_date}${time}${venue}` };
+  return { kind, heading: `${n.code} · ${heading}`, when: `${formatDay(n.notice_date)}${time}${venue}` };
 }
 
 /** The latest same-day change (late, cancelled, moved) to one class, or null.

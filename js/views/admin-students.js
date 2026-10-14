@@ -4,7 +4,7 @@ import { progName, state } from '../state.js';
 import { esc, toast } from '../util.js';
 import { groupModulesByCode } from './student.js';
 
-/* ---------------- Students directory ---------------- */
+/* Students directory */
 export async function loadStudentsList(){
   const byCampus = state.caps.campuses ? (q=>q.eq('campus_id', state.campusId)) : null;
   try{ state.students = await fetchAllRows('students', 'updated_at', false, byCampus); }
@@ -25,7 +25,7 @@ export function renderAdminStudents(){
     const rows = state.students.filter(s=>matches(s,state.studentSearch));
     card.querySelector('#stuRows').innerHTML = rows.map(s=>`<tr>
       <td>${esc(s.id)}</td><td>${s.name ? esc(s.name) : '<span class="muted">No name given</span>'}</td><td>${esc(progName(s.programme_id))}</td>
-      <td>${(s.module_ids||[]).length}</td><td>${s.updated_at?new Date(s.updated_at).toLocaleDateString():''}</td>
+      <td>${(s.module_ids||[]).length}</td><td>${s.updated_at?new Date(s.updated_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }):''}</td>
       <td class="row"><button class="btn small secondary" data-edit="${esc(s.id)}">Edit</button>
       <button class="btn small danger" data-del="${esc(s.id)}">Delete</button></td></tr>`).join('')
       || `<tr><td colspan="6" class="muted" style="padding:14px;">No students match.</td></tr>`;
