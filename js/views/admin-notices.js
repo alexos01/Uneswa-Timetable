@@ -60,7 +60,7 @@ function renderAnnouncementForm(){
 function renderAnnouncementAdminList(){
   const card = document.createElement('div'); card.className = 'card';
   const list = sortAnnouncements(state.announcements);
-  card.innerHTML = `<h2><span class="htitle">Published announcements</span> <span class="tag">${list.length}</span></h2>` +
+  card.innerHTML = `<h2><span class="htitle">Published announcements</span>${list.length ? ` <span class="tag">${list.length}</span>` : ''}</h2>` +
     (list.length ? list.map(a=>announcementCard(a, `
       <div class="row" style="margin-top:8px;">
         <button class="btn small secondary" data-pin="${esc(a.id)}">${a.pinned?'Unpin':'Pin'}</button>

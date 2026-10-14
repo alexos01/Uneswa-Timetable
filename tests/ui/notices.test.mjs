@@ -48,7 +48,7 @@ test('student sees that their next class is running late', async ()=>{
   seed.tables.class_notices.push({ id:'n9', campus_id:'kwaluseni', code:'CSC211', kind:'late', notice_date:'2026-10-20', start_time:'09:00', delay_minutes:15 });
   const { page, errors } = await openApp(browser, server.url, seed, { fixedTime:'2026-10-20T07:00:00', localStorage:{ uneswa_last_student:'202100123' } });
   await page.waitForSelector('.today-banner');
-  assert.match(await page.textContent('.today-banner'), /CSC211 at 09:00/);
+  assert.match(await page.textContent('.today-banner'), /Today 09:00 · CSC211/);
   assert.match(await page.textContent('.today-banner .bannerchange'), /Running 15 min late/);
   assert.deepEqual(errors, []);
 });

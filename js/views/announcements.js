@@ -30,8 +30,8 @@ export function renderAnnouncements(){
   const wrap = document.createElement('div');
   wrap.className = 'card announcements';
   const list = sortAnnouncements(studentAnnouncements());
-  wrap.innerHTML = `<h2><span class="htitle">Announcements</span> <span class="pill">${list.length}</span></h2>` +
+  wrap.innerHTML = `<h2><span class="htitle">Announcements</span>${list.length ? ` <span class="pill">${list.length}</span>` : ''}</h2>` +
     (list.length ? list.map(a=>announcementCard(a)).join('')
-      : `<div class="empty-state"><div class="big">📣</div>No announcements for ${esc(campusName(state.campusId))} right now.</div>`);
+      : `<div class="empty-state">No announcements for ${esc(campusName(state.campusId))} right now.</div>`);
   return wrap;
 }

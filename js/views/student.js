@@ -86,7 +86,7 @@ export function renderStudent(){
 
   if(state.resetNotice){
     const n=document.createElement('div'); n.className='notice';
-    n.innerHTML = `<span>New semester started (${esc(state.meta.semester)}) — your module list was cleared. Choose your modules again below.</span>
+    n.innerHTML = `<span>A new semester has started (${esc(state.meta.semester)}), so your module list was cleared. Choose your modules again below.</span>
       <button class="btn small secondary" id="dismissNotice">Got it</button>`;
     wrap.appendChild(n);
     setTimeout(()=>{ document.getElementById('dismissNotice').onclick=()=>{ state.resetNotice=false; render(); }; },0);
@@ -122,15 +122,15 @@ export function renderStudent(){
   const banner=document.createElement('div');
   if(nc){
     const change = changeFor(state.notices, nc.mod.code, localIsoDate(nc.date), nc.mod.start_time);
+    const when = nc.when.charAt(0).toUpperCase() + nc.when.slice(1);
     banner.className='today-banner';
-    banner.innerHTML = `<div class="lbl">Next class · ${esc(nc.when)}</div>
-      <div class="next">${esc(nc.mod.code)} at ${esc(nc.mod.start_time)}</div>
-      <div class="subd">${esc(nc.mod.venue||'Venue TBC')} · ${esc(nc.mod.day)}</div>
+    banner.innerHTML = `<h2 class="next">${esc(when)} ${esc(nc.mod.start_time)} · ${esc(nc.mod.code)}</h2>
+      <div class="subd">${esc(nc.mod.venue||'Venue to be confirmed')}${nc.mod.end_time ? ` · until ${esc(nc.mod.end_time)}` : ''}</div>
       ${change ? `<div class="bannerchange kind-${esc(change.kind)}">${esc(noticeSummary(change))}${change.title?` · ${esc(change.title)}`:''}</div>` : ''}`;
   } else {
     banner.className='today-banner empty';
-    banner.innerHTML = `<div class="lbl">Next class</div><div class="next">Nothing scheduled</div>
-      <div class="subd">Pick your faculty and course below to build your timetable.</div>`;
+    banner.innerHTML = `<h2 class="next">No classes yet</h2>
+      <div class="subd">Pick your faculty and course below and your week fills in.</div>`;
   }
   wrap.appendChild(banner);
 
@@ -146,7 +146,7 @@ export function renderStudent(){
         </select></div>
       <div class="field"><label><span class="stepnum">2</span>Course</label>
         <select id="progSel"><option value="">Choose a course…</option></select></div>
-      <div class="field"><label><span class="stepnum">3</span>Year (optional — narrows the list)</label>
+      <div class="field"><label><span class="stepnum">3</span>Year (optional, narrows the list)</label>
         <select id="yearSel"><option value="">All years</option></select></div>
       <div class="field"><label><span class="stepnum">4</span>Modules on this course</label></div>
       <div class="modlist" id="modList"></div>
@@ -307,8 +307,8 @@ export function renderMyCourses(student){
   const card=document.createElement('div'); card.className='card';
   const mods = myModules(student);
   const uniqueCodes = new Set(mods.map(m=>m.code));
-  card.innerHTML = `<h2><span class="htitle">My registered courses</span> <span class="pill">${uniqueCodes.size} module${uniqueCodes.size!==1?'s':''}</span></h2>`;
-  if(mods.length===0){ card.innerHTML += `<div class="empty-state"><div class="big">📚</div>Nothing selected yet — choose a faculty and course on the left.</div>`; return card; }
+  card.innerHTML = `<h2><span class="htitle">My registered courses</span>${uniqueCodes.size ? ` <span class="pill">${uniqueCodes.size} module${uniqueCodes.size!==1?'s':''}</span>` : ''}</h2>`;
+  if(mods.length===0){ card.innerHTML += `<div class="empty-state">No modules yet. Pick your faculty and course to add them.</div>`; return card; }
   const byProg = {};
   mods.forEach(m=>{ (byProg[m.programme_id]=byProg[m.programme_id]||[]).push(m); });
   Object.keys(byProg).forEach(pid=>{
@@ -318,8 +318,8 @@ export function renderMyCourses(student){
       const n = groups[code].length;
       return `<span class="modchip">${esc(code)}${n>1?` ×${n}`:''}</span>`;
     }).join('');
-    g.innerHTML = `<div class="cgfac">${esc(facName(state.programmes.find(p=>p.id===pid)?.faculty_id))}</div>
-      <div class="cgtitle">${esc(progName(pid))}</div>
+    g.innerHTML = `<div class="cgtitle">${esc(progName(pid))}</div>
+      <div class="cgfac">${esc(facName(state.programmes.find(p=>p.id===pid)?.faculty_id))}</div>
       <div>${chips}</div>`;
     card.appendChild(g);
   });
@@ -330,7 +330,7 @@ export function renderWeekGrid(student){
   const card=document.createElement('div'); card.className='card';
   const mods = myModules(student);
   card.innerHTML = `<h2><span class="htitle">Weekly timetable</span> <button class="btn small terracotta" id="exportPdfBtn">Export PDF</button></h2>`;
-  if(mods.length===0){ card.appendChild(Object.assign(document.createElement('div'),{className:'empty-state',innerHTML:'<div class="big">📭</div>Nothing to show yet.'})); return card; }
+  if(mods.length===0){ card.appendChild(Object.assign(document.createElement('div'),{className:'empty-state',textContent:'Your week fills in as you add modules.'})); return card; }
   const table=document.createElement('table'); table.className='grid';
   let thead='<tr><th class="timecol">Time</th>'+DAYS.map(d=>`<th>${d}</th>`).join('')+'</tr>';
   let rows='';
@@ -354,7 +354,7 @@ export function renderWeekGrid(student){
 export function renderExamsCard(student){
   const card=document.createElement('div'); card.className='card';
   const exams = myExams(student);
-  card.innerHTML = `<h2><span class="htitle">My exams</span> <span class="tag">${exams.length}</span></h2>`;
+  card.innerHTML = `<h2><span class="htitle">My exams</span>${exams.length ? ` <span class="tag">${exams.length}</span>` : ''}</h2>`;
   if(exams.length===0){ card.innerHTML += `<div class="muted">No exam dates published yet for your modules.</div>`; }
   else exams.forEach(e=>{
     const row=document.createElement('div'); row.className='examrow';

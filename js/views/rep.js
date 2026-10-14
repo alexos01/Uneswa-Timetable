@@ -78,7 +78,7 @@ function renderCourseAnnouncementForm(codes){
 function renderMyAnnouncements(){
   const card = document.createElement('div'); card.className = 'card';
   const mine = sortAnnouncements(state.announcements.filter(a=>a.created_by===state.session.user.id));
-  card.innerHTML = `<h2><span class="htitle">Your announcements</span> <span class="tag">${mine.length}</span></h2>` +
+  card.innerHTML = `<h2><span class="htitle">Your announcements</span>${mine.length ? ` <span class="tag">${mine.length}</span>` : ''}</h2>` +
     (mine.length ? mine.map(a=>announcementCard(a, `<div class="row" style="margin-top:8px;"><button class="btn small danger" data-delann="${esc(a.id)}">Delete</button></div>`)).join('')
       : '<div class="muted">Nothing posted yet.</div>');
   card.querySelectorAll('[data-delann]').forEach(b=>{

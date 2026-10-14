@@ -71,7 +71,7 @@ export function renderNoticeForm(codes, { onPosted } = {}){
 export function renderNoticeList(codes, { title='Upcoming notices', canDelete=false, onChange } = {}){
   const card = document.createElement('div'); card.className = 'card';
   const list = upcomingNotices(state.notices, codes);
-  card.innerHTML = `<h2><span class="htitle">${esc(title)}</span> <span class="tag">${list.length}</span></h2>` +
+  card.innerHTML = `<h2><span class="htitle">${esc(title)}</span>${list.length ? ` <span class="tag">${list.length}</span>` : ''}</h2>` +
     (list.length ? list.map(n=>noticeRow(n, canDelete)).join('') : '<div class="muted">Nothing coming up.</div>');
   card.querySelectorAll('[data-delnotice]').forEach(b=>{
     b.onclick = async ()=>{
@@ -89,7 +89,7 @@ export function renderNoticeList(codes, { title='Upcoming notices', canDelete=fa
 export function noticeRow(n, canDelete=false){
   const d = describeNotice(n);
   return `<div class="noticerow kind-${esc(n.kind)}">
-    <div><span class="noticekind">${esc(d.kind.label)}</span> <b>${esc(d.heading)}</b>
+    <div>${n.kind==='late' ? '' : `<span class="noticekind">${esc(d.kind.label)}</span> `}<b>${esc(d.heading)}</b>
       <div class="muted">${esc(d.when)}${n.author_name?` · ${esc(n.author_name)}`:''}</div>
       ${n.details?`<div class="noticedetails">${esc(n.details)}</div>`:''}</div>
     ${canDelete?`<button class="btn small danger" data-delnotice="${esc(n.id)}">Delete</button>`:''}
