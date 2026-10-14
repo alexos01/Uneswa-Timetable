@@ -99,22 +99,25 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
   <a href="#today">Where it started</a>
   <a href="#architecture">Architecture</a>
   <a href="#layout">Repo layout</a>
+  <a href="#codemap">Code map</a>
+  <a href="#flows">How it works</a>
   <a href="#data">Data model</a>
   <a href="#access">Roles &amp; access</a>
   <a href="#rollout">Safe rollout</a>
   <a href="#native">Native features</a>
   <a href="#features">Feature specs</a>
   <a href="#release">Build &amp; release</a>
+  <a href="#ops">Operations</a>
   <a href="#plan">Delivery plan</a>
   <a href="#risks">Risks &amp; open items</a>
 </nav>
 
 <article>
 <header class="doc">
-  <div class="eyebrow">System design · v1.2 · updated 13 Oct 2026</div>
-  <h1>UNESWA Timetable for Android &amp; iOS</h1>
+  <div class="eyebrow">System design · v1.3 · updated 14 Oct 2026</div>
+  <h1>UNESWA Timetable: system design</h1>
   <p class="lede">Turning the web timetable students already use into installable Android and iPhone apps. Class reminders fire even when the app is closed, and the app gains multi-campus admin, lecturers, class reps and announcements. The website itself installs from the browser, works offline and gets push notifications.</p>
-  <div class="meta"><span>Repo: alexos01/Uneswa-Timetable</span><span>Branch: main</span><span>Drafted 1 Oct 2026</span></div>
+  <div class="meta"><span>Repo: alexos01/Uneswa-Timetable</span><span>Branch: main</span><span>Drafted 1 Oct 2026</span><span>Live: alexos01.github.io/Uneswa-Timetable</span></div>
 </header>
 
 <section id="summary">
@@ -129,18 +132,18 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 </section>
 
 <section id="status">
-  <h2>Status on 13 Oct 2026</h2>
+  <h2>Status on 14 Oct 2026</h2>
   <p>Everything in the delivery plan is on <code>main</code>, including phase 2 (offline web app, push, class reps, late notices, CSV timetables). The live database has migrations 001 and 002; the phase 2 features that need 003 stay hidden until it is run.</p>
   <div class="tbl"><table>
     <thead><tr><th>Item</th><th>State</th><th>Evidence</th></tr></thead>
     <tbody>
-      <tr><td>Unit tests (search, reminders, push plan, notices, CSV, service worker files)</td><td><span class="chip yes">36 passing</span></td><td><code>npm test</code>, locally and in CI</td></tr>
+      <tr><td>Unit tests (search, reminders, push plan, notices, CSV, service worker files)</td><td><span class="chip yes">37 passing</span></td><td><code>npm test</code>, locally and in CI</td></tr>
       <tr><td>UI tests against an in-memory Supabase</td><td><span class="chip yes">35 passing</span></td><td><code>npm run test:ui</code>, locally and in CI</td></tr>
       <tr><td>Migrations + RLS rules on Postgres 16</td><td><span class="chip yes">70 checks passing</span></td><td><code>npm run test:db</code>, applied twice to prove idempotency</td></tr>
       <tr><td>send-push Edge Function under Deno</td><td><span class="chip yes">3 passing</span></td><td><code>npm run test:functions</code>: real Web Push encryption, decrypted and checked</td></tr>
       <tr><td>Android debug APK</td><td><span class="chip yes">builds in CI</span></td><td>Artifact <code>uneswa-timetable-debug-apk</code> on each Actions run</td></tr>
       <tr><td>iOS simulator build</td><td><span class="chip yes">builds in CI</span></td><td>Unsigned, macOS runner</td></tr>
-      <tr><td>Live site after the push</td><td><span class="chip yes">loads</span></td><td>Checked against the real database: single-campus mode, student sign-in screen shows</td></tr>
+      <tr><td>Live site after the push</td><td><span class="chip yes">loads</span></td><td>Checked on GitHub Pages against the real database on 14 Oct 2026: campus header, Announcements, Lecturer and Staff tabs, and it reopens with no connection</td></tr>
       <tr><td>Reminders and PDF sharing on a real phone</td><td><span class="chip part">not yet tested</span></td><td>Needs the APK installed on a device. Emulators and CI can't confirm notification delivery.</td></tr>
       <tr><td>Migrations on the live project</td><td><span class="chip part">001 + 002 run, 003 not run</span></td><td>Seen on 13 Oct 2026 by loading the app against the live database: campus header and Announcements/Lecturer tabs present, <code>app_schema_version()</code> missing</td></tr>
       <tr><td>Web Push on the live project</td><td><span class="chip part">off</span></td><td>Needs VAPID keys, the function deployed and <code>setup.sql</code> run; see Risks</td></tr>
@@ -170,26 +173,47 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 </section>
 
 <section id="architecture">
-  <h2>Target architecture</h2>
-  <p>The web build and both app builds load the same files. The shell decides at runtime which platform adapter to use, so feature code never checks the platform itself.</p>
+  <h2>Architecture</h2>
+  <p>One set of HTML, CSS and JavaScript runs in three places: the website on GitHub Pages, the Android app and the iPhone app. Supabase is the only backend. <code>js/platform.js</code> decides at runtime whether it is in a browser or the phone shell, so feature code never checks the platform itself.</p>
 <pre class="mermaid">
 flowchart LR
   subgraph Code["One codebase (repo root)"]
-    UI["index.html + css/ + js/ (ES modules)"]
-    PA["js/platform.js<br/>web adapter | native adapter"]
+    UI["index.html + css/ + js/<br/>plain ES modules, no bundler"]
+    PA["js/platform.js<br/>browser or phone"]
     UI --> PA
   end
-  UI -- "served as-is" --> GP["GitHub Pages<br/>alexos01.github.io"]
-  UI -- "npm run build → www/" --> CAP["Capacitor 8 shell"]
-  CAP --> AND["Android app (APK / AAB)"]
-  CAP --> IOS["iOS app (Xcode project)"]
-  PA -. native only .-> LN["Local notifications<br/>Filesystem + Share<br/>App back button"]
-  GP --> SB[("Supabase<br/>Postgres + Auth + Realtime")]
+  UI -- "served as-is" --> GP["GitHub Pages<br/>website, installable"]
+  GP --> SW["sw.js service worker<br/>app files offline,<br/>shows push messages"]
+  UI -- "npm run build, cap sync" --> CAP["Capacitor 8 shell"]
+  CAP --> AND["Android app"]
+  CAP --> IOS["iPhone app"]
+  PA -. phone only .-> LN["Local notifications,<br/>file sharing, back button"]
+  GP --> IDB[("IndexedDB on the device<br/>campus timetable + outbox")]
+  AND --> IDB
+  IOS --> IDB
+  GP --> SB[("Supabase<br/>Postgres + RLS, Auth, Realtime")]
   AND --> SB
   IOS --> SB
+  SB -- "trigger on new notice<br/>or announcement" --> FN["Edge Function<br/>send-push"]
+  CRON["pg_cron<br/>every minute"] --> FN
+  FN -- "Web Push" --> PS["Browser push service"]
+  PS --> SW
 </pre>
+  <div class="tbl"><table>
+    <thead><tr><th>Part</th><th>What it does</th><th>Runs on</th></tr></thead>
+    <tbody>
+      <tr><td>Web app</td><td>Everything students and staff see: timetable, tabs, admin, PDF and CSV export</td><td>Browser, from GitHub Pages</td></tr>
+      <tr><td>Service worker <code>sw.js</code></td><td>Keeps every app file so the site installs and opens offline; shows push messages; brings the app forward when a notification is tapped</td><td>Browser only</td></tr>
+      <tr><td>Device store</td><td>The campus timetable and the student's record, plus an outbox of changes made offline</td><td>IndexedDB in the browser or phone app</td></tr>
+      <tr><td>Capacitor shell</td><td>Wraps the same files as an Android and iPhone app; adds scheduled local notifications, the share sheet and the back button</td><td>Phone</td></tr>
+      <tr><td>Supabase Postgres</td><td>All data. Row-level security decides who may change what</td><td>Supabase</td></tr>
+      <tr><td>Supabase Auth</td><td>Email and password sign-in for staff, lecturers and class reps. Students have no login</td><td>Supabase</td></tr>
+      <tr><td>Supabase Realtime</td><td>Tells open apps when timetable rows, notices or announcements change, so they reload</td><td>Supabase</td></tr>
+      <tr><td>Edge Function <code>send-push</code></td><td>Sends Web Push to browsers: alerts on new notices and announcements, and class reminders each minute</td><td>Supabase (Deno)</td></tr>
+    </tbody>
+  </table></div>
   <h3>Why there's no bundler</h3>
-  <p>GitHub Pages serves <code>main</code> exactly as committed. If the code were split into ES modules that the browser loads directly, with third-party libraries copied into <code>vendor/</code>, the site would keep working on every push without touching the Pages settings. Capacitor only needs a folder of static files, so <code>npm run build</code> copies the web files into <code>www/</code> and <code>npx cap sync</code> carries them into both native projects. Native plugins are reached through <code>window.Capacitor.Plugins</code>, which Capacitor's native bridge injects, so no import step is needed either.</p>
+  <p>GitHub Pages serves <code>main</code> exactly as committed. The code is split into ES modules that the browser loads directly, with third-party libraries copied into <code>vendor/</code>, so the site keeps working on every push without a build step or Pages settings. Capacitor only needs a folder of static files, so <code>npm run build</code> copies the web files into <code>www/</code> and <code>npx cap sync</code> carries them into both native projects. Native plugins are reached through <code>registerPlugin()</code> from the vendored <code>@capacitor/core</code>; on the web they are never called.</p>
 </section>
 
 <section id="layout">
@@ -216,6 +240,85 @@ assets/  icons/          icon + splash sources (SVG) and rendered PNGs
 android/  ios/           native projects, committed
 tests/unit  tests/ui  tests/db  tests/functions
 .github/workflows/       tests, Android APK, iOS simulator build</pre>
+</section>
+
+<section id="codemap">
+  <h2>Code map</h2>
+  <p>Where to look for each job. Everything under <code>js/lib/</code> is pure logic with no screen or database access, so it is unit tested in Node.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>File</th><th>Job</th></tr></thead>
+    <tbody>
+      <tr><td><code>js/main.js</code></td><td>Start-up: send queued offline changes, detect which migrations the database has, load the campus, connect realtime; reconnect when the device comes back online</td></tr>
+      <tr><td><code>js/db.js</code></td><td>Every Supabase read and write, campus scoping, staff roles, capability detection</td></tr>
+      <tr><td><code>js/state.js</code></td><td>The one shared state object the views redraw from</td></tr>
+      <tr><td><code>js/render.js</code>, <code>js/views/</code></td><td>The tabs: My Timetable, Announcements, Lecturer, Class rep, Staff (admin sub-tabs), plus sign-in and footer</td></tr>
+      <tr><td><code>js/platform.js</code></td><td>The only browser-or-phone switch: notifications, saving PDFs and CSVs, back button, install button, service worker registration</td></tr>
+      <tr><td><code>js/cache.js</code>, <code>js/store.js</code></td><td>The offline copy of the campus timetable in IndexedDB (localStorage if IndexedDB is blocked)</td></tr>
+      <tr><td><code>js/sync.js</code></td><td>The outbox for student changes made offline</td></tr>
+      <tr><td><code>js/reminders.js</code>, <code>js/push.js</code></td><td>Reminder scheduling on the phone, alerts while the app is open, and the browser's Web Push subscription</td></tr>
+      <tr><td><code>js/pdf.js</code>, <code>js/ai-import.js</code></td><td>PDF timetables (personal and per course); reading a university PDF with an AI model</td></tr>
+      <tr><td><code>js/lib/</code></td><td>Search, reminder planning, notice wording and dates, CSV reading and writing, announcement visibility</td></tr>
+      <tr><td><code>supabase/migrations/</code></td><td>The schema and every access rule, run once each in the SQL editor</td></tr>
+      <tr><td><code>supabase/functions/</code></td><td><code>send-push</code> and <code>_shared/push-plan.js</code>, which decides what to send to whom</td></tr>
+      <tr><td><code>tests/</code></td><td><code>unit</code> (Node), <code>ui</code> (Chromium against an in-memory fake Supabase), <code>db</code> (throwaway Postgres in Docker), <code>functions</code> (Deno)</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="flows">
+  <h2>How it works</h2>
+  <h3>Opening the app</h3>
+  <p>The app first sends anything left in the offline outbox, then asks the database what it supports and loads the student's campus. If the server can't be reached it opens on the copy kept on the device and says it is offline.</p>
+<pre class="mermaid">
+sequenceDiagram
+  participant App
+  participant Dev as Device store
+  participant DB as Supabase
+  App->>DB: campuses, announcements, app_schema_version()
+  alt server reachable
+    App->>DB: send queued student changes (outbox)
+    App->>DB: load faculties, courses, sessions, exams, notices for the campus
+    App->>Dev: save the campus copy and the student record
+    App->>DB: subscribe to realtime changes
+  else no connection
+    App->>Dev: read the last campus copy
+    App->>App: show it, marked offline
+  end
+</pre>
+  <h3>Working offline</h3>
+  <ul>
+    <li>The service worker serves the app files, so the site opens with no signal once it has been visited (or installed) once.</li>
+    <li>The whole campus timetable is on the device, so a student can browse courses and tick modules.</li>
+    <li>A save that can't reach the server goes into the outbox and the header shows how many changes are waiting. A save the server refuses still shows an error.</li>
+    <li>When the browser reports it is back online (or the phone app resumes), the outbox is sent first, then everything reloads, and the student sees "You're back online".</li>
+  </ul>
+  <h3>A class running late</h3>
+<pre class="mermaid">
+sequenceDiagram
+  participant L as Lecturer or class rep
+  participant DB as Supabase
+  participant F as send-push
+  participant B as Student's browser
+  participant P as Student's phone app
+  L->>DB: insert class_notice (kind late, 15 min)
+  Note over DB: RLS: only for their assigned modules
+  DB-->>B: realtime change (page open)
+  B->>B: reload, show "Running 15 min late", notify now
+  DB->>F: trigger on insert
+  F->>F: find subscriptions following that module
+  F-->>B: Web Push (page closed)
+  DB-->>P: realtime change while the app is open
+  P->>P: notify now, reschedule the reminder for the delayed start
+</pre>
+  <p>Both the page and the push use the same notification tag (<code>notice-&lt;id&gt;</code>), so a student who gets both sees one notification.</p>
+  <h3>Class reminders</h3>
+  <ul>
+    <li><b>Phone app:</b> one repeating local notification per session at the chosen lead time (10 minutes by default), rescheduled whenever modules, notices or settings change. No server is involved.</li>
+    <li><b>Browser with push on:</b> <code>pg_cron</code> calls <code>send-push</code> every minute; it sends each student the sessions starting their lead time from now, skipping cancelled classes and moving late ones.</li>
+    <li><b>Browser without push:</b> reminders fire only while the page is open.</li>
+  </ul>
+  <h3>Uploading the official timetable</h3>
+  <p>An admin uploads a CSV (from Excel or Google Sheets) under Class timetable or Exam timetable. <code>js/lib/csv.js</code> matches columns by name, tidies days, times and dates, and lists bad lines; nothing is written until the admin confirms. Rows already on the timetable are skipped, so importing twice adds nothing. A PDF goes through AI Import instead, where the admin reviews every proposed row.</p>
 </section>
 
 <section id="data">
@@ -292,6 +395,7 @@ erDiagram
   <p>Pushes to <code>main</code> go live straight away for the students using the site, so the new code has to work against the database as it is now and as it will be after the migration.</p>
   <ul>
     <li>At startup <code>db.js</code> probes for the <code>campuses</code> table. If it's missing, the app runs in <b>single-campus mode</b>: legacy <code>settings</code> row 1, any signed-in user is admin (as today), and no lecturer or announcement tabs. Admin shows a banner pointing to the migration file.</li>
+    <li>Migration 003 adds <code>app_schema_version()</code>. While it's missing, the Class rep tab, "running late" notices, course announcements and push stay hidden; everything else works.</li>
     <li>Migrations are idempotent (<code>if not exists</code>, policies dropped before they're recreated), so running one twice is harmless.</li>
     <li>Someone with Supabase dashboard access runs each file once in the SQL editor. The app can't do it, because it only holds the public anon key.</li>
   </ul>
@@ -376,6 +480,50 @@ sequenceDiagram
       <tr><td>Store listing needs</td><td colspan="2">Privacy policy (the app stores student number and name), data-safety / privacy labels, screenshots, a support contact</td></tr>
     </tbody>
   </table></div>
+</section>
+
+<section id="ops">
+  <h2>Operations</h2>
+  <h3>Deploying</h3>
+  <ul>
+    <li>Pushing to <code>main</code> is the deploy: GitHub Pages republishes the site within a couple of minutes. Students get the new files on their next visit, because the service worker tries the network first.</li>
+    <li>CI (<code>.github/workflows/mobile.yml</code>) runs the unit, UI, database and function tests, then builds the Android APK and the iOS app. A failing test shows as an annotation on the run page.</li>
+    <li>To undo a bad deploy, <code>git revert</code> the commit and push. The site rolls back on the next Pages build.</li>
+  </ul>
+  <h3>Running a migration</h3>
+  <ol>
+    <li>Open the Supabase dashboard, then <b>SQL Editor → New query</b>.</li>
+    <li>Paste the whole file from <code>supabase/migrations/</code> and click <b>Run</b>. Every file is safe to run again.</li>
+    <li>Reload the site; the features switch on by themselves.</li>
+  </ol>
+  <p>Only someone with dashboard access can do this; the app holds only the public anon key. Before 001, delete test accounts under Authentication → Users, because every account there becomes a super admin. Migrations only add tables, columns and rules, so rolling back means reverting app code, not the schema.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Migration</th><th>Live project (14 Oct 2026)</th><th>Turns on</th></tr></thead>
+    <tbody>
+      <tr><td><code>001_campuses_and_roles.sql</code></td><td><span class="chip yes">run</span></td><td>Campuses, staff roles, lecturers</td></tr>
+      <tr><td><code>002_announcements_and_notices.sql</code></td><td><span class="chip yes">run</span></td><td>Announcements, class notices</td></tr>
+      <tr><td><code>003_class_reps_late_notices_push.sql</code></td><td><span class="chip part">not run</span></td><td>Class reps, "running late", course announcements, push subscriptions</td></tr>
+    </tbody>
+  </table></div>
+  <h3>Turning on push for the website</h3>
+  <p>Needs migration 003. Make a VAPID key pair, put the public key in <code>js/config.js</code>, set the secrets, deploy <code>send-push</code> with <code>--no-verify-jwt</code>, and run its <code>setup.sql</code>. The full steps, and how to turn it off again, are in <code>supabase/functions/send-push/README.md</code>. <b>Edge Functions → send-push → Logs</b> shows each call and how many messages were sent.</p>
+  <h3>Each semester</h3>
+  <ul>
+    <li>Upload the new class and exam timetables as CSV (Staff → Class timetable / Exam timetable). <b>Download CSV template</b> gives the columns.</li>
+    <li>Start the new semester under Staff → Settings. Students' module lists are archived and cleared the next time they open the app.</li>
+    <li>Settings → <b>Clean up duplicate entries</b> shows any rows imported twice and removes the extras.</li>
+  </ul>
+  <h3>Staff accounts</h3>
+  <p>The person creates an account under any sign-in tab (<b>Create a staff account</b>). A campus admin adds their email under Staff → Staff &amp; lecturers, picks Lecturer or Class rep, and assigns module codes. Only a super admin can create admins.</p>
+  <h3>Local development</h3>
+<pre class="block">npm ci
+npm run serve            # http://localhost:5173, against the live database
+npm test                 # unit
+npm run test:ui          # browser tests on a fake database (UI_CPU_SLOWDOWN=6 to catch races)
+npm run test:db          # migrations + access rules, needs Docker
+npm run test:functions   # send-push under Deno
+npm run sync             # copy into the Android and iOS projects</pre>
+  <p>The local server talks to the live database, so student numbers entered there create real records. The UI tests never touch it.</p>
 </section>
 
 <section id="plan">
