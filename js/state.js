@@ -1,4 +1,4 @@
-/* ---------------- app state ---------------- */
+/* App state */
 export const state = {
   faculties:[], programmes:[], modules:[], exams:[],
   meta:{semester:"Not set yet", updated_at:null, semester_version:1},

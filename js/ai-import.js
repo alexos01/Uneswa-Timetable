@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { esc, toast } from './util.js';
 import { resolveProgrammeId } from './views/admin-entries.js';
 
-/* ---------------- AI Import (bring-your-own Anthropic key) ---------------- */
+/* AI Import (bring-your-own Anthropic key) */
 export function getAnthropicKey(){ return localStorage.getItem('uneswa_admin_anthropic_key') || ''; }
 export function getAiProvider(){ return localStorage.getItem('uneswa_ai_provider') || 'anthropic'; }
 export function getOllamaConfig(){

@@ -4,7 +4,7 @@ import { esc, toast } from '../util.js';
 import { parseCsv, templateHeader, timetableRows, toCsv } from '../lib/csv.js';
 import { saveText } from '../platform.js';
 
-/* ---------------- class/exam entries ---------------- */
+/* Class/exam entries */
 export async function resolveProgrammeId(name, facultyName){
   name = (name||'').trim(); if(!name) return null;
   let prog = state.programmes.find(p=>p.name.toLowerCase()===name.toLowerCase());

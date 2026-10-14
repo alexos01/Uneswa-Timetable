@@ -10,7 +10,7 @@ import { renderAdminStaff } from './admin-staff.js';
 import { renderAdminNotices } from './admin-notices.js';
 import { staffHeader, signOut } from './staff.js';
 
-/* ================= ADMIN VIEW ================= */
+/* Admin view */
 const ADMIN_TABS = [
   ['faculties', 'Faculties &amp; Courses'],
   ['modules', 'Class timetable'],
@@ -54,7 +54,7 @@ export function renderAdmin(){
   return wrap;
 }
 
-/* ---------------- Faculties & Courses ---------------- */
+/* Faculties & Courses */
 export function renderAdminFaculties(){
   const card=document.createElement('div'); card.className='card';
   card.innerHTML = `<h2><span class="htitle">Faculties</span></h2>

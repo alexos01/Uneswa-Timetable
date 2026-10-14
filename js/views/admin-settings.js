@@ -2,7 +2,7 @@ import { countDuplicates, removeDuplicates, sb, scoped, updateSemester, campusNa
 import { state } from '../state.js';
 import { esc, toast } from '../util.js';
 
-/* ---------------- Settings ---------------- */
+/* Settings */
 export function renderAdminSettings(){
   const card=document.createElement('div'); card.className='card';
   const modDupeCount = countDuplicates(state.modules, m=>[m.code,m.day,m.start_time,m.end_time,m.venue,m.programme_id].join('|'));

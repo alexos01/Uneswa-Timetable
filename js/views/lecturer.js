@@ -6,7 +6,7 @@ import { WEEKDAYS, sortSessions } from '../lib/modules.js';
 import { renderNoticeForm, renderNoticeList } from './notices.js';
 import { staffHeader, signOut } from './staff.js';
 
-/* ================= LECTURER PORTAL =================
+/* Lecturer portal
    A lecturer sees only the module codes assigned to them on their campus. They can
    move a session for good (day, time, venue) or post a one-off notice. */
 export async function loadLecturerCodes(){

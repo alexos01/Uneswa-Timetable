@@ -8,7 +8,7 @@ import { loadLecturerCodes, renderSessionsEditor } from './lecturer.js';
 import { renderNoticeForm, renderNoticeList } from './notices.js';
 import { staffHeader, signOut } from './staff.js';
 
-/* ================= CLASS REP =================
+/* Class rep
    A class rep is assigned module codes like a lecturer (lecturer_modules). They post
    class notices and move sessions for those codes, and post announcements to the
    courses those codes are taught on, optionally to one year. */

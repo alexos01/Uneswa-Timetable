@@ -86,7 +86,7 @@ export async function saveText(text, filename, mime = 'text/csv'){
   return 'shared';
 }
 
-/* ---------------- notifications ---------------- */
+/* Notifications */
 export async function requestNotificationPermission(){
   if(!isNative){
     if(!('Notification' in window)) return false;

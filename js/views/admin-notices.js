@@ -5,7 +5,7 @@ import { esc, toast } from '../util.js';
 import { renderNoticeForm, renderNoticeList } from './notices.js';
 import { announcementCard, sortAnnouncements } from './announcements.js';
 
-/* ---------------- Announcements & class notices (admin) ---------------- */
+/* Announcements & class notices (admin) */
 export function renderAdminNotices(){
   const wrap = document.createElement('div');
   wrap.className = 'grid2';

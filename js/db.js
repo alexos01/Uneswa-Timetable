@@ -6,7 +6,7 @@ import { flushOutbox, isNetworkError, queueStudent } from './sync.js';
 
 export const sb = (SUPABASE_URL.includes('YOUR-PROJECT')) ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-/* ---------------- capability detection ----------------
+/* Capability detection
    New code is pushed to the live site before the migrations are run, so every
    feature that needs a new table checks for it first. Without migration 001 the
    app behaves exactly as it did with one campus and one admin login. */
@@ -41,7 +41,7 @@ export function scoped(q){
   return state.caps.campuses ? q.eq('campus_id', state.campusId) : q;
 }
 
-/* ---------------- data loading ---------------- */
+/* Data loading */
 export async function fetchAllRows(table, orderCol, ascending, filter){
   let all = [], from = 0;
   const pageSize = 1000;
@@ -206,7 +206,7 @@ export async function fetchStudent(id){
   return data;
 }
 
-/* ---------------- semester settings ---------------- */
+/* Semester settings */
 export async function updateSemester(fields){
   const row = { ...fields, updated_at: new Date().toISOString() };
   const q = state.caps.campuses
@@ -216,7 +216,7 @@ export async function updateSemester(fields){
   if(error) throw error;
 }
 
-/* ---------------- staff ---------------- */
+/* Staff */
 /** Loads the signed-in account's staff row; before migration 001 any login is admin. */
 export async function loadStaff(session){
   state.session = session || null;

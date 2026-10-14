@@ -7,7 +7,7 @@ import { ROLE_LABEL } from './admin-staff.js';
 import { renderLecturer } from './lecturer.js';
 import { renderRep } from './rep.js';
 
-/* ================= STAFF: sign-in and role routing =================
+/* Staff sign-in and role routing
    Admins work under Staff, lecturers under Lecturer and class reps under Class rep.
    Any of the three tabs can be used to sign in; afterwards the app moves to the
    tab for the account's role. */
