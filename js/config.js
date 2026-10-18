@@ -11,7 +11,7 @@ export const SLOTS = ["07:00-07:50","08:00-08:50","09:00-09:50","10:00-10:50","1
 /* Web Push: the public VAPID key. Leave empty to keep push off. Generate a key pair
    with `npx web-push generate-vapid-keys`, paste the public key here, and set the
    private key as a Supabase secret (see supabase/functions/send-push/README.md). */
-export const PUSH_PUBLIC_KEY = "";
+export const PUSH_PUBLIC_KEY = "BG7wPEMY4WSuK-uDbW0ldO0LkZdgkAjKb0RX2IebTbulOXctEK3qajr9L3F_izV5cV9lvDAJVVFzkgYfRY6QwdE";
 
 /* Campus used before a student picks one, and for all data before migration 001. */
 export const DEFAULT_CAMPUS = "kwaluseni";
