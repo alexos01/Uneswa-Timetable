@@ -49,3 +49,4 @@ drop trigger if exists announcements_push on public.announcements;
 ```
 
 Set `PUSH_PUBLIC_KEY` back to `""` so browsers stop subscribing.
+look here@ lwandile
