@@ -12,8 +12,8 @@ create or replace function public.call_send_push(payload jsonb) returns void
 language plpgsql security definer set search_path = public as $$
 begin
   perform net.http_post(
-    url     := 'https://<PROJECT_REF>.supabase.co/functions/v1/send-push',
-    headers := jsonb_build_object('Content-Type', 'application/json', 'x-push-secret', '<PUSH_SECRET>'),
+    url     := 'https://scmedarqqmpuhgdksthl.supabase.co/functions/v1/send-push',
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-push-secret', '51cb0b37d4df4d1fad2f149fc10f63d2e6d0da8acea72c0efcf9739a3bf23fca'),
     body    := payload);
 end;
 $$;
