@@ -2,6 +2,12 @@
 
 The mobile app work is on `main`. The live site runs the new code in single-campus mode until step 1 is done. Background is in [`docs/system-design.html`](system-design.html), and setup and release steps are in [`README.md`](../README.md).
 
+## First: change the push webhook secret
+
+The real `send-push` secret was committed to this public repo on 19 Oct 2026. Until it's changed in Supabase, anyone who finds it can send notifications to every student with reminders on.
+
+- [ ] Follow [`push-secret.md`](push-secret.md). About ten minutes.
+
 ## 1. Run the database migrations
 
 Nothing else in this list works until this is done.
