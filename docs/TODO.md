@@ -6,33 +6,33 @@ The mobile app work is on `main`. The live site runs the new code in single-camp
 
 The real `send-push` secret was committed to this public repo on 19 Oct 2026. Until it's changed in Supabase, anyone who finds it can send notifications to every student with reminders on.
 
-- [ ] Follow [`push-secret.md`](push-secret.md). About ten minutes.
+- [×] Follow [`push-secret.md`](push-secret.md). About ten minutes.
 
 ## 1. Run the database migrations
 
 Nothing else in this list works until this is done.
 
-- [ ] In the Supabase dashboard, open **Authentication → Users** and delete any test accounts. **Every account listed there becomes a super admin** when the migration runs.
-- [ ] Open **SQL Editor → New query**, paste [`supabase/migrations/001_campuses_and_roles.sql`](../supabase/migrations/001_campuses_and_roles.sql) and click **Run**.
-- [ ] In a new query, run [`supabase/migrations/002_announcements_and_notices.sql`](../supabase/migrations/002_announcements_and_notices.sql).
-- [ ] In a new query, run [`supabase/migrations/003_class_reps_late_notices_push.sql`](../supabase/migrations/003_class_reps_late_notices_push.sql).
-- [ ] In a new query, run [`supabase/migrations/004_notice_courses_timetable_pdf_student_passwords.sql`](../supabase/migrations/004_notice_courses_timetable_pdf_student_passwords.sql).
-- [ ] After 004, every student is asked to choose a password the next time they open the app, and a debug APK built before this change can no longer open student timetables. Install the latest one.
-- [ ] Reload the site. The header should now say **Kwaluseni campus**, and the top tabs should be **My Timetable · Announcements · Staff**. The **Lecturer** and **Class rep** tabs only appear once a lecturer or class rep signs in under Staff.
+- [×] In the Supabase dashboard, open **Authentication → Users** and delete any test accounts. **Every account listed there becomes a super admin** when the migration runs.
+- [×] Open **SQL Editor → New query**, paste [`supabase/migrations/001_campuses_and_roles.sql`](../supabase/migrations/001_campuses_and_roles.sql) and click **Run**.
+- [×] In a new query, run [`supabase/migrations/002_announcements_and_notices.sql`](../supabase/migrations/002_announcements_and_notices.sql).
+- [×] In a new query, run [`supabase/migrations/003_class_reps_late_notices_push.sql`](../supabase/migrations/003_class_reps_late_notices_push.sql).
+- [×] In a new query, run [`supabase/migrations/004_notice_courses_timetable_pdf_student_passwords.sql`](../supabase/migrations/004_notice_courses_timetable_pdf_student_passwords.sql).
+- [×] After 004, every student is asked to choose a password the next time they open the app, and a debug APK built before this change can no longer open student timetables. Install the latest one.
+- [×] Reload the site. The header should now say **Kwaluseni campus**, and the top tabs should be **My Timetable · Announcements · Staff**. The **Lecturer** and **Class rep** tabs only appear once a lecturer or class rep signs in under Staff.
 
 All four files are safe to run again if something goes wrong halfway.
 
 ## 2. Send the missing details
 
-- [ ] Your **LinkedIn** and **Facebook** URLs for the footer. They go in `js/config.js` under `CONTACT`, and each link stays hidden while its URL is empty.
-- [ ] Confirm the app ID **`io.github.alexos01.uneswatimetable`**. It deliberately avoids the university's domain because this isn't an official UNESWA app. It can't be changed after the first store release.
-- [ ] Check the footer line: *"Student-built timetable app. Not an official University of Eswatini service; always check notices from your department."* Keep it or reword it (it lives in `js/views/footer.js`).
+- [×] Your **LinkedIn** and **Facebook** URLs for the footer. They go in `js/config.js` under `CONTACT`, and each link stays hidden while its URL is empty.
+- [×] Confirm the app ID **`io.github.alexos01.uneswatimetable`**. It deliberately avoids the university's domain because this isn't an official UNESWA app. It can't be changed after the first store release.
+- [×] Check the footer line: *"Student-built timetable app. Not an official University of Eswatini service; always check notices from your department."* Keep it or reword it (it lives in `js/views/footer.js`).
 
 ## 3. Test the Android app on a real phone
 
 CI proves the app builds, but only a real device can show that notifications arrive.
 
-- [ ] On GitHub, open **Actions → Tests and mobile builds**, pick the latest green run, and download **`uneswa-timetable-debug-apk`** from the bottom of the page.
+- [×] On GitHub, open **Actions → Tests and mobile builds**, pick the latest green run, and download **`uneswa-timetable-debug-apk`** from the bottom of the page.
 - [ ] Install it on an Android phone. Allow "install unknown apps" for your file manager or browser.
 - [ ] Sign in as a student, tick a few modules, turn on **Reminders**, and allow notifications.
 - [ ] Set the reminder to 5 minutes before a class, close the app fully, and check that the notification arrives.
