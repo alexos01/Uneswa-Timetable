@@ -34,6 +34,7 @@ const APP_FILES = [
   'js/render.js',
   'js/state.js',
   'js/store.js',
+  'js/student-token.js',
   'js/sync.js',
   'js/timetable-pdf.js',
   'js/util.js',

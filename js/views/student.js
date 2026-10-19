@@ -1,5 +1,6 @@
 import { DAYS, HOURS } from '../config.js';
-import { checkSemesterReset, fetchStudent, saveStudent, ensureCampus, goneOffline } from '../db.js';
+import { checkSemesterReset, fetchStudent, saveStudent, ensureCampus, goneOffline, studentAccountStatus, studentSignIn, studentSignOut } from '../db.js';
+import { getToken } from '../student-token.js';
 import { cachedStudent } from '../cache.js';
 import { isNetworkError } from '../sync.js';
 import { renderNoticeList } from './notices.js';
@@ -38,7 +39,100 @@ export function nextClass(student){
   return null;
 }
 
+/* Sign-in with a password (migration 004), in two steps: the student number, then
+   the password, or choosing one when the number has none yet. */
+let gateStep = null; // { id, status, campus } once the number has been checked
+const MIN_PASSWORD = 6;
+const STUDENT_ID = /^[0-9A-Za-z]{4,20}$/;
+
+function signInError(r){
+  if(r.error === 'wrong_password') return `Wrong password. ${r.attempts_left} more ${r.attempts_left===1?'try':'tries'} before this number is locked for 15 minutes.`;
+  if(r.error === 'locked') return `Too many wrong passwords. Try again after ${new Date(r.until).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' })}.`;
+  if(r.error === 'short_password') return `Passwords need at least ${MIN_PASSWORD} characters.`;
+  if(r.error === 'bad_id') return 'Check your student number.';
+  return 'Something went wrong. Try again.';
+}
+
+/** Signed in: open the student's timetable on their campus. */
+async function enterTimetable(student){
+  if(state.caps.campuses && student.campus_id) await ensureCampus(student.campus_id);
+  const wasReset = checkSemesterReset(student);
+  if(wasReset) await saveStudent(student); else state.currentStudent = student;
+  if(!state.currentStudent) return; // signed out again while saving
+  state.currentStudentId = student.id; state.resetNotice = wasReset; state.gateNotice = null; gateStep = null;
+  try{ localStorage.setItem('uneswa_last_student', student.id); }catch{}
+  document.dispatchEvent(new CustomEvent('timetable:changed'));
+  render();
+}
+
+function renderPasswordGate(){
+  const wrap = document.createElement('div');
+  const step = gateStep;
+  const campusField = state.caps.campuses ? `<div class="field"><label for="gateCampus">Campus</label><select id="gateCampus">${state.campuses.map(c=>`<option value="${esc(c.id)}" ${c.id===(step?.campus||state.campusId)?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>` : '';
+  const choosing = step && step.status !== 'password';
+  const title = !step ? 'Find your timetable' : step.status === 'password' ? 'Enter your password' : step.status === 'new' ? 'Create your timetable' : 'Choose a password';
+  const intro = !step ? '' : step.status === 'no_password'
+    ? `<p class="muted">Student number <b>${esc(step.id)}</b> has no password yet. Choose one now. From then on it opens this timetable on any phone.</p>`
+    : step.status === 'new' ? `<p class="muted">Student number <b>${esc(step.id)}</b> is new here. Choose a password to keep your timetable yours.</p>`
+    : `<p class="muted">Student number <b>${esc(step.id)}</b></p>`;
+  wrap.innerHTML = `<form class="adminlock card" id="gateForm" novalidate>
+    <h2 style="justify-content:center;"><span class="htitle">${title}</span></h2>
+    ${state.gateNotice && !step ? `<div class="warnbox">${esc(state.gateNotice)}</div>` : ''}
+    ${!step ? `<div class="field"><label for="gateId">Student number</label><input id="gateId" autocomplete="username" inputmode="numeric" placeholder="e.g. 202100123"></div>${campusField}`
+      : `${intro}<input type="hidden" id="gateId" autocomplete="username" value="${esc(step.id)}">
+        ${step.status === 'new' ? '<div class="field"><label for="gateName">Your name</label><input id="gateName" autocomplete="name" placeholder="e.g. Nomvula Dlamini"></div>' : ''}
+        <div class="field"><label for="gatePass">${choosing ? 'Choose a password' : 'Password'}</label><input id="gatePass" type="password" autocomplete="${choosing ? 'new-password' : 'current-password'}"></div>
+        ${choosing ? '<div class="field"><label for="gatePass2">Type it again</label><input id="gatePass2" type="password" autocomplete="new-password"></div>' : ''}`}
+    <div id="gateError" class="warnbox" hidden></div>
+    <button class="btn terracotta" id="gateGo" type="submit" style="width:100%;">${!step ? 'Continue' : step.status === 'password' ? 'Sign in' : step.status === 'new' ? 'Create my timetable' : 'Set password'}</button>
+    ${step ? `<div class="row" style="justify-content:space-between;margin-top:10px;"><button class="btn small secondary" type="button" id="gateBack">Use another number</button>
+      ${step.status === 'password' ? '<span class="muted">Forgot it? Your campus admin can reset it.</span>' : `<span class="muted">At least ${MIN_PASSWORD} characters.</span>`}</div>`
+      : '<div class="muted" style="margin-top:10px;">Your module choices are saved to your student number, behind a password you choose.</div>'}
+  </form>`;
+  setTimeout(()=>{
+    const q = id=>wrap.querySelector(id);
+    const btn = q('#gateGo');
+    const fail = msg=>{ const e = q('#gateError'); e.textContent = msg; e.hidden = false; btn.disabled = false; };
+    q('#gateBack')?.addEventListener('click', ()=>{ gateStep = null; render(); });
+    (q('#gatePass') || q('#gateId'))?.focus();
+    q('#gateForm').onsubmit = async e=>{
+      e.preventDefault();
+      btn.disabled = true;
+      if(!step){
+        const id = q('#gateId').value.trim();
+        if(!STUDENT_ID.test(id)) return fail('Enter your student number.');
+        const campus = q('#gateCampus')?.value || null;
+        if(state.offline){
+          // Offline, only a student already signed in on this device can get back in.
+          const cached = getToken(id) ? await cachedStudent(id) : null;
+          if(!cached) return fail("You're offline. Connect to the internet to sign in.");
+          return enterTimetable(cached);
+        }
+        try{ gateStep = { id, status: await studentAccountStatus(id), campus }; render(); }
+        catch(err){
+          if(isNetworkError(err)){ goneOffline(); return fail("You're offline. Connect to the internet to sign in."); }
+          fail('Could not check your student number: '+err.message);
+        }
+        return;
+      }
+      const pass = q('#gatePass').value;
+      if(pass.length < MIN_PASSWORD) return fail(`Passwords need at least ${MIN_PASSWORD} characters.`);
+      if(choosing && pass !== q('#gatePass2').value) return fail("The two passwords don't match.");
+      try{
+        const r = await studentSignIn(step.id, pass, { name: q('#gateName')?.value.trim() || null, campus: step.campus });
+        if(r.error) return fail(signInError(r));
+        await enterTimetable(r.student);
+      }catch(err){
+        if(isNetworkError(err)){ goneOffline(); return fail("You're offline. Connect to the internet to sign in."); }
+        fail('Could not sign in: '+err.message);
+      }
+    };
+  },0);
+  return wrap;
+}
+
 export function renderStudentGate(){
+  if(state.caps.v4) return renderPasswordGate();
   const wrap=document.createElement('div');
   wrap.innerHTML = `<div class="adminlock card">
     <h2 style="justify-content:center;"><span class="htitle">Find your timetable</span></h2>
@@ -99,7 +193,7 @@ export function renderStudent(){
   idbar.className='row'; idbar.style.marginBottom='14px'; idbar.style.justifyContent='space-between';
   idbar.innerHTML = `<span class="muted">Signed in as <b>${esc(student.name||student.id)}</b> (${esc(student.id)})</span>
     <span class="row">${state.caps.campuses ? `<label class="campusswitch">Campus <select id="studentCampusSel">${state.campuses.map(c=>`<option value="${esc(c.id)}" ${c.id===state.campusId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label>` : ''}
-    <button class="btn small secondary" id="switchStudentBtn">Switch student</button></span>`;
+    <button class="btn small secondary" id="switchStudentBtn">${state.caps.v4 ? 'Sign out' : 'Switch student'}</button></span>`;
   wrap.appendChild(idbar);
   setTimeout(()=>{
     const csel = document.getElementById('studentCampusSel');
@@ -113,7 +207,8 @@ export function renderStudent(){
       document.dispatchEvent(new CustomEvent('timetable:changed'));
       render();
     };
-    document.getElementById('switchStudentBtn').onclick=()=>{
+    document.getElementById('switchStudentBtn').onclick=async ()=>{
+      if(state.caps.v4) await studentSignOut(student.id);
       state.currentStudentId=null; state.currentStudent=null;
       try{ localStorage.removeItem('uneswa_last_student'); }catch{}
       document.dispatchEvent(new CustomEvent('timetable:changed')); // clears this student's reminders

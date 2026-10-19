@@ -3,7 +3,7 @@ export const state = {
   faculties:[], programmes:[], modules:[], exams:[],
   meta:{semester:"Not set yet", updated_at:null, semester_version:1},
   caps:{ campuses:false, notices:false, v3:false }, campuses:[], campusId:'',
-  session:null, staff:null, announcements:[], notices:[], loadedAt:null, offline:false, syncing:false, pendingSync:0,
+  session:null, staff:null, announcements:[], notices:[], loadedAt:null, offline:false, syncing:false, pendingSync:0, gateNotice:null,
   currentStudentId:null, currentStudent:null, resetNotice:false,
   pickFaculty:'', pickProgramme:'', pickYear:'', searchQuery:'', searchAllCourses:false,
   notif:{enabled:false, minutesBefore:10},

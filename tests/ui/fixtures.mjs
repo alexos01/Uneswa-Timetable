@@ -80,3 +80,10 @@ export function v4Seed(){
   s.schemaVersion = 4;
   return s;
 }
+
+/** localStorage for a device already signed in as `id` on a v4 seed (adds the session to the seed). */
+export function signedInAs(seed, id){
+  const token = `token-${id}`;
+  (seed.tables.student_sessions = seed.tables.student_sessions || []).push({ token, student_id:id });
+  return { uneswa_last_student:id, uneswa_student_token: JSON.stringify({ id, token }) };
+}

@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer, launch, openApp, tables } from './helpers.mjs';
-import { campusSeed, v3Seed, v4Seed } from './fixtures.mjs';
+import { campusSeed, signedInAs, v3Seed, v4Seed } from './fixtures.mjs';
 
 let server, browser;
 before(async ()=>{ server = await startServer(); browser = await launch(); });
@@ -111,7 +111,7 @@ test('a notice for one course reaches only the students taking the module on tha
     const s = v4Seed();
     s.tables.class_notices = [n];
     s.tables.students = students;
-    const { page: p, errors: errs } = await openApp(browser, server.url, s, { fixedTime:'2026-10-23T06:30:00', localStorage:{ uneswa_last_student:id } });
+    const { page: p, errors: errs } = await openApp(browser, server.url, s, { fixedTime:'2026-10-23T06:30:00', localStorage: signedInAs(s, id) });
     await p.waitForSelector('table.grid');
     const text = await p.textContent('#main');
     assert.equal(/Class cancelled/.test(text), sees, `${id} ${sees ? 'sees' : 'does not see'} the BCom cancellation`);

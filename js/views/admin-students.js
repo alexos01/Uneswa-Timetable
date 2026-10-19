@@ -1,5 +1,5 @@
 import { DAYS } from '../config.js';
-import { fetchAllRows, sb } from '../db.js';
+import { fetchAllRows, resetStudentPassword, sb } from '../db.js';
 import { progName, state } from '../state.js';
 import { esc, toast } from '../util.js';
 import { coursesOfStudent } from '../lib/modules.js';
@@ -36,9 +36,18 @@ export function renderAdminStudents(){
       <td>${esc(s.id)}</td><td>${s.name ? esc(s.name) : '<span class="muted">No name given</span>'}</td><td>${courseCell(s)}</td>
       <td>${(s.module_ids||[]).length}</td><td>${s.updated_at?new Date(s.updated_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }):''}</td>
       <td class="row"><button class="btn small secondary" data-edit="${esc(s.id)}">Edit</button>
+      ${state.caps.v4 ? `<button class="btn small secondary" data-reset="${esc(s.id)}">Reset password</button>` : ''}
       <button class="btn small danger" data-del="${esc(s.id)}">Delete</button></td></tr>`).join('')
       || `<tr><td colspan="6" class="muted" style="padding:14px;">No students match.</td></tr>`;
     card.querySelectorAll('[data-edit]').forEach(b=>{ b.onclick=()=>{ state.editingStudentId=b.getAttribute('data-edit'); renderEditPanel(); }; });
+    card.querySelectorAll('[data-reset]').forEach(b=>{
+      b.onclick = async ()=>{
+        const id = b.getAttribute('data-reset');
+        if(!confirm(`Reset the password for ${id}? They are signed out everywhere and choose a new password the next time they open the app.`)) return;
+        try{ await resetStudentPassword(id); toast(`Password reset for ${id}`); }
+        catch(err){ toast('Could not reset: '+err.message); }
+      };
+    });
     card.querySelectorAll('[data-del]').forEach(b=>{
       b.onclick = async ()=>{
         if(!confirm('Delete this student record?')) return;

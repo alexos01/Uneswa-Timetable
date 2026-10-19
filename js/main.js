@@ -1,5 +1,6 @@
 import { DEFAULT_CAMPUS } from './config.js';
-import { checkSemesterReset, detectCapabilities, fetchStudent, loadAll, loadStaff, saveStudent, sb, scheduleRefresh, subscribeRealtime } from './db.js';
+import { GATE_NOTICE, SignedOutError, checkSemesterReset, detectCapabilities, fetchStudent, loadAll, loadStaff, saveStudent, sb, scheduleRefresh, subscribeRealtime } from './db.js';
+import { clearToken } from './student-token.js';
 import { render, renderStatus, setTab } from './render.js';
 import { state } from './state.js';
 import { startReminders } from './reminders.js';
@@ -18,7 +19,18 @@ async function connect(studentId, { behind = false } = {}){
   await detectCapabilities();
   if(state.caps.campuses && !state.campuses.some(c=>c.id===state.campusId)) state.campusId = DEFAULT_CAMPUS;
   await flushOutbox(sb);
-  let student = studentId ? await fetchStudent(studentId) : null;
+  let student = null, signedOut = null;
+  if(studentId){
+    try{ student = await fetchStudent(studentId); }
+    catch(err){ if(!(err instanceof SignedOutError)) throw err; signedOut = err; }
+  }
+  // Since migration 004 a student needs a password: a device without a valid token goes to sign-in.
+  if(signedOut && (!behind || state.currentStudentId === studentId)){
+    clearToken();
+    state.currentStudent = null; state.currentStudentId = null;
+    state.gateNotice = signedOut.hadToken ? GATE_NOTICE.signedOut : GATE_NOTICE.passwords;
+    try{ localStorage.removeItem('uneswa_last_student'); }catch{}
+  }
   if(behind){
     const local = state.currentStudent;
     if(state.currentStudentId !== studentId) student = null;

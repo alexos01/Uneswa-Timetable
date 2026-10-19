@@ -2,7 +2,8 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, DEFAULT_CAMPUS } from './config.js';
 import { render } from './render.js';
 import { state } from './state.js';
 import { toast } from './util.js';
-import { flushOutbox, isNetworkError, queueStudent } from './sync.js';
+import { flushOutbox, isNetworkError, queueStudent, saveOwnRecord } from './sync.js';
+import { clearToken, getToken, setToken } from './student-token.js';
 
 export const sb = (SUPABASE_URL.includes('YOUR-PROJECT')) ? null : supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -185,7 +186,8 @@ export async function saveStudent(student){
   if(state.caps.campuses) row.campus_id = row.campus_id || state.campusId;
   else delete row.campus_id;
   if(!state.offline){
-    const { data, error } = await sb.from('students').upsert(row).select().single();
+    const { data, error, signedOut } = await saveOwnRecord(sb, row);
+    if(signedOut){ studentSignedOut(); return null; }
     if(!error){ state.currentStudent = data; return data; }
     if(!isNetworkError(error)){ console.error(error); toast('Could not save: '+error.message); return null; }
     goneOffline();
@@ -201,10 +203,66 @@ export function goneOffline(){
   state.offline = true;
   toast("You're offline. Your changes are saved on this device and will sync when you're back online.");
 }
+/** Thrown by fetchStudent when this device is not (or no longer) signed in as the student. */
+export class SignedOutError extends Error {
+  constructor(hadToken){ super('Signed out'); this.name = 'SignedOutError'; this.hadToken = hadToken; }
+}
+
 export async function fetchStudent(id){
+  if(state.caps.v4){
+    const token = getToken(id);
+    if(!token) throw new SignedOutError(false);
+    const { data, error } = await sb.rpc('student_get', { p_token: token });
+    if(error) throw error;
+    if(data?.error){ clearToken(); throw new SignedOutError(true); }
+    return data.student;
+  }
   const { data, error } = await sb.from('students').select('*').eq('id', id).maybeSingle();
   if(error) throw error;
   return data;
+}
+
+/* Student passwords (migration 004) */
+export const GATE_NOTICE = {
+  passwords: 'Timetables now have passwords. Enter your student number to choose yours.',
+  signedOut: 'You were signed out, perhaps because your password was reset. Sign in again.',
+};
+
+/** 'new', 'no_password' or 'password'. */
+export async function studentAccountStatus(id){
+  const { data, error } = await sb.rpc('student_account_status', { p_id: id });
+  if(error) throw error;
+  return data;
+}
+
+/** Signs in, or sets the first password. Resolves to { student } or { error, ... }; keeps the token on success. */
+export async function studentSignIn(id, password, { name = null, campus = null } = {}){
+  const { data, error } = await sb.rpc('student_sign_in', { p_id: id, p_password: password, p_name: name, p_campus: campus });
+  if(error) throw error;
+  if(data.token) setToken(id, data.token);
+  return data;
+}
+
+/** Ends this device's sign-in. Offline, the token is only forgotten here. */
+export async function studentSignOut(id){
+  const token = getToken(id);
+  clearToken();
+  if(token && !state.offline) await sb.rpc('student_sign_out', { p_token: token }).catch(()=>{});
+}
+
+export async function resetStudentPassword(id){
+  const { error } = await sb.rpc('reset_student_password', { p_id: id });
+  if(error) throw error;
+}
+
+/** The server no longer accepts this device's token: back to the sign-in screen. */
+export function studentSignedOut(notice = GATE_NOTICE.signedOut){
+  clearToken();
+  state.currentStudent = null; state.currentStudentId = null;
+  state.gateNotice = notice;
+  try{ localStorage.removeItem('uneswa_last_student'); }catch{}
+  document.dispatchEvent(new CustomEvent('timetable:changed')); // clears this student's reminders
+  render();
 }
 
 /* Semester settings */

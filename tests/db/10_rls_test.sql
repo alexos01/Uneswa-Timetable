@@ -70,8 +70,12 @@ select public.t_expect('luyengo admin cannot assign on kwaluseni', :ladmin, $q$i
 select public.t_expect('anon reads modules', null, $q$select * from public.modules$q$, 'rows:2');
 select public.t_expect('anon cannot insert modules', null, $q$insert into public.modules (code, campus_id) values ('X','kwaluseni')$q$, 'error:42501');
 select public.t_expect('anon cannot update modules', null, $q$update public.modules set venue='x'$q$, 'rows:0');
-select public.t_expect('anon registers a student', null, $q$insert into public.students (id, name, campus_id) values ('202200001','New','luyengo')$q$, 'rows:1');
-select public.t_expect('anon updates a student', null, $q$update public.students set name='Renamed' where id='202200001'$q$, 'rows:1');
+-- Since migration 004 students go through student_sign_in() and friends (30_v4_test.sql);
+-- the table itself is closed to anon.
+insert into public.students (id, name, campus_id) values ('202200001','New','luyengo');
+select public.t_expect('anon cannot register a student directly', null, $q$insert into public.students (id, name, campus_id) values ('202200002','New','luyengo')$q$, 'error:42501');
+select public.t_expect('anon cannot update a student directly', null, $q$update public.students set name='Renamed' where id='202200001'$q$, 'rows:0');
+select public.t_expect('anon cannot read students', null, $q$select * from public.students$q$, 'rows:0');
 select public.t_expect('anon cannot delete students', null, $q$delete from public.students$q$, 'rows:0');
 select public.t_expect('anon cannot read staff', null, $q$select * from public.staff$q$, 'rows:0');
 

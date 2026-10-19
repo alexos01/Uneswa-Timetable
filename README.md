@@ -23,6 +23,7 @@ js/
   reminders.js push.js   reminder scheduling, change alerts, Web Push subscription
   cache.js store.js      offline copy of the campus timetable (IndexedDB)
   sync.js                changes made offline, sent when back online
+  student-token.js       the device's student sign-in token (never the password)
   timetable-pdf.js       the university's timetable PDF: upload, offline copy
   lib/                   pure logic (search, reminders, notices, CSV, announcements), unit tested
   views/                 student, announcements, sign-in, admin tabs, lecturer, class rep
@@ -53,7 +54,7 @@ The dev server talks to the live Supabase project in `js/config.js`. When you're
 | --- | --- | --- |
 | `npm test` | Pure logic: search scoping, reminder and push planning, notices, CSV reading, the calendar file, the service worker's file list | Node |
 | `npm run test:ui` | The real app in Chromium against an in-memory Supabase fake: sign-in, module picking, search, PDF, CSV and calendar export, offline start and sync, the service worker, push subscription, campuses, staff roles, lecturer and class rep tabs, late notices, announcements, CSV upload | Chromium or Chrome (set `CHROMIUM_PATH` if it isn't in `/usr/bin`) |
-| `npm run test:db` | Applies the migrations twice to a throwaway Postgres and checks 70 row-level-security rules | Docker |
+| `npm run test:db` | Applies the migrations twice to a throwaway Postgres and checks the row-level security rules, Storage rules and student sign-in functions | Docker |
 | `npm run test:functions` | Runs the send-push Edge Function under Deno against a stand-in Supabase and push service, and decrypts what it sends | Deno, openssl |
 
 CI runs all four on every push (`.github/workflows/mobile.yml`).
@@ -96,10 +97,10 @@ The phone apps schedule reminders on the device. In a browser, reminders and lat
 
 | Role | Can do |
 | --- | --- |
-| Student (no login) | Register by student number, pick modules, read everything, download a course's timetable |
-| Lecturer | Move sessions and post notices (running late, test, cancelled, moved…) for their assigned modules |
+| Student | Sign in with student number and password (before migration 004: student number only), pick modules, read everything, download a course's timetable |
+| Lecturer | Move sessions and post notices (running late, test, cancelled, moved…) for their assigned modules, for all their courses or one |
 | Class rep | What a lecturer can do for their assigned modules, plus announcements to those modules' courses |
-| Campus admin | Everything on their own campus: timetables, CSV and AI imports, students, semester reset, announcements, lecturers, class reps |
+| Campus admin | Everything on their own campus: timetables, CSV and AI imports, the official timetable PDF, students and their passwords, semester reset, announcements, lecturers, class reps |
 | Super admin | Every campus, all-campus announcements, creating admins |
 
 To add staff, the person first opens **Staff → Create a staff account**. An admin then adds their email under **Staff → Staff & lecturers** and, for a lecturer or class rep, assigns module codes. Lecturers and class reps sign in under **Staff**, which then opens their own **Lecturer** or **Class rep** tab. Those tabs are hidden from everyone else.
@@ -108,9 +109,11 @@ To add staff, the person first opens **Staff → Create a staff account**. An ad
 
 Under **Staff → Class timetable** (or **Exam timetable**), upload the timetable as a CSV file saved from Excel or Google Sheets. **Download CSV template** gives the columns: `Code, Day, Start, End, Venue, Course, Faculty` (`Date` instead of `Day` for exams). The app shows how many rows are ready and which lines it will skip before writing anything, and importing the same file twice adds nothing. When the university only publishes a PDF, use **AI Import**, which reads the PDF text and proposes rows to review.
 
-### Known limitation
+Upload the PDF itself under **Staff → Settings → Official timetable PDF** as well. Students find it at the bottom of **My Timetable**, and it opens offline.
 
-Students have no password, so anyone can read or edit a student record if they know the student number. Fixing that means real student sign-in, such as a magic link to the university email.
+### Student passwords
+
+After migration 004, a student signs in with their student number and a password they choose; the first password set on a number claims it, including records made before passwords. The device keeps a sign-in token, never the password, so the app opens straight away on that phone and still works offline. Five wrong passwords lock the number for 15 minutes. A campus admin resets a forgotten password under **Staff → Students**, and the student chooses a new one.
 
 ## Configuration
 

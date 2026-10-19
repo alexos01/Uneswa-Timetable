@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { startServer, launch, openApp, tables } from './helpers.mjs';
-import { v3Seed, v4Seed } from './fixtures.mjs';
+import { signedInAs, v3Seed, v4Seed } from './fixtures.mjs';
 
 let server, browser;
 before(async ()=>{ server = await startServer(); browser = await launch(); });
@@ -60,7 +60,8 @@ function studentSeed(make){
 }
 
 test('students find the PDF at the bottom of My Timetable, and it opens offline', async ()=>{
-  const { page, context, errors } = await openApp(browser, server.url, studentSeed(v4Seed), { localStorage:{ uneswa_last_student:'202100500' } });
+  const seed = studentSeed(v4Seed);
+  const { page, context, errors } = await openApp(browser, server.url, seed, { localStorage: signedInAs(seed, '202100500') });
   await page.waitForSelector('.pdfcard');
   assert.equal(await page.evaluate(()=>{ const all = [...document.querySelectorAll('#main .card')]; return all[all.length-1].classList.contains('pdfcard'); }), true, 'it is the last card on the page');
   assert.match(await page.textContent('.pdfcard'), /uploaded on 15 Oct 2026/);

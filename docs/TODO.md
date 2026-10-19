@@ -11,6 +11,7 @@ Nothing else in this list works until this is done.
 - [ ] In a new query, run [`supabase/migrations/002_announcements_and_notices.sql`](../supabase/migrations/002_announcements_and_notices.sql).
 - [ ] In a new query, run [`supabase/migrations/003_class_reps_late_notices_push.sql`](../supabase/migrations/003_class_reps_late_notices_push.sql).
 - [ ] In a new query, run [`supabase/migrations/004_notice_courses_timetable_pdf_student_passwords.sql`](../supabase/migrations/004_notice_courses_timetable_pdf_student_passwords.sql).
+- [ ] After 004, every student is asked to choose a password the next time they open the app, and a debug APK built before this change can no longer open student timetables. Install the latest one.
 - [ ] Reload the site. The header should now say **Kwaluseni campus**, and the top tabs should be **My Timetable · Announcements · Staff**. The **Lecturer** and **Class rep** tabs only appear once a lecturer or class rep signs in under Staff.
 
 All four files are safe to run again if something goes wrong halfway.
@@ -51,6 +52,7 @@ CI proves the app builds, but only a real device can show that notifications arr
 - [ ] As a lecturer, post a test for a module that runs on two courses (MAT111, say) and pick one under **Course**. Only students taking it on that course should see it; **All courses** reaches everyone on the module.
 - [ ] Add class reps with the role *Class rep* and assign the modules for their class. They sign in under **Staff** and land on their **Class rep** tab, where they can do what a lecturer can for those modules, and post announcements to their class.
 - [ ] Post a first announcement to check that students see it under **Announcements**.
+- [ ] As a student, sign in with your student number. You're asked to choose a password, and after that the app opens without asking on that phone. Sign out and back in to check the password. Then, as a campus admin, click **Reset password** for that student under **Staff → Students**; the student is signed out and chooses a new password.
 - [ ] Under **Staff → Settings → Official timetable PDF**, upload each campus's timetable PDF from the university. Students find it at the bottom of **My Timetable**, and it opens offline once the app has been opened online.
 
 ## 6. Turn on push notifications for the web app (after step 1)
@@ -62,7 +64,7 @@ Without this, browser reminders only arrive while the page is open. The phone ap
 
 ## 7. Decide
 
-- [ ] **Student privacy.** Students sign in with a student number and no password, so anyone who knows a number can view or change that student's record. App-store privacy reviews will ask about this. Fixing it means real student sign-in, such as a magic link sent to the university email. Do we do that before a store release?
+- [x] **Student privacy.** Decided and built: after migration 004 each student signs in with their student number and a password they choose, and only campus admins can read the students table. A forgotten password is reset by a campus admin under **Staff → Students**.
 - [ ] **Store release.** Google Play needs a Play Console account (one-off US$25) and an upload keystore. The App Store needs an Apple Developer membership (US$99 a year) and a Mac or cloud macOS runner for signing. Both stores need a privacy policy. Which store first, and who owns the accounts?
 
 ## Questions

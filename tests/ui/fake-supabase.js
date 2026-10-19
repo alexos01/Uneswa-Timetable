@@ -25,6 +25,67 @@
       ctx.tables.push_subscriptions = (ctx.tables.push_subscriptions||[]).filter(x=>x.endpoint!==args.p_endpoint);
       return { data:null, error:null };
     },
+    // Student passwords (migration 004), mirroring the SQL functions. Passwords are kept
+    // as plain text here: this is test data in the browser, not a database.
+    student_account_status(args, ctx){
+      if(!v4()) return notFound('student_account_status');
+      const id = String(args.p_id).trim();
+      if(!ctx.tables.students.some(r=>r.id===id)) return { data:'new', error:null };
+      return { data: creds().some(c=>c.student_id===id) ? 'password' : 'no_password', error:null };
+    },
+    student_sign_in(args, ctx){
+      if(!v4()) return notFound('student_sign_in');
+      const id = String(args.p_id||'').trim(), pw = args.p_password || '', name = (args.p_name||'').trim() || null;
+      if(!/^[0-9A-Za-z]{4,20}$/.test(id)) return { data:{ error:'bad_id' }, error:null };
+      if(pw.length < 6 || pw.length > 72) return { data:{ error:'short_password' }, error:null };
+      const cred = creds().find(c=>c.student_id===id);
+      if(cred){
+        if(cred.locked_until && new Date(cred.locked_until) > new Date()) return { data:{ error:'locked', until:cred.locked_until }, error:null };
+        if(cred.password !== pw){
+          if(cred.failed_attempts + 1 >= 5){ cred.failed_attempts = 0; cred.locked_until = new Date(Date.now()+15*60000).toISOString(); return { data:{ error:'locked', until:cred.locked_until }, error:null }; }
+          cred.failed_attempts++;
+          return { data:{ error:'wrong_password', attempts_left: 5 - cred.failed_attempts }, error:null };
+        }
+        cred.failed_attempts = 0; cred.locked_until = null;
+      }else{
+        if(!ctx.tables.students.some(r=>r.id===id)) ctx.tables.students.push({ id, name, campus_id: args.p_campus || 'kwaluseni', programme_id:null, module_ids:[], semester_version:1, updated_at:new Date().toISOString(), history:[] });
+        creds().push({ student_id:id, password:pw, failed_attempts:0, locked_until:null });
+      }
+      const row = ctx.tables.students.find(r=>r.id===id);
+      if(name) row.name = name;
+      const token = Array.from(crypto.getRandomValues(new Uint8Array(32)), b=>b.toString(16).padStart(2,'0')).join('');
+      sessions().push({ token, student_id:id });
+      return { data:{ token, student: clone(row) }, error:null };
+    },
+    student_get(args, ctx){
+      if(!v4()) return notFound('student_get');
+      const sess = sessions().find(x=>x.token===args.p_token);
+      return { data: sess ? { student: clone(ctx.tables.students.find(r=>r.id===sess.student_id)) } : { error:'signed_out' }, error:null };
+    },
+    student_save(args, ctx){
+      if(!v4()) return notFound('student_save');
+      const sess = sessions().find(x=>x.token===args.p_token);
+      if(!sess || sess.student_id !== args.p_student.id) return { data:{ error:'signed_out' }, error:null };
+      const row = ctx.tables.students.find(r=>r.id===sess.student_id);
+      for(const k of ['name','campus_id','module_ids','semester_version','history','updated_at']) if(k in args.p_student) row[k] = clone(args.p_student[k]);
+      emit('students', 'UPDATE', row);
+      return { data:{ student: clone(row) }, error:null };
+    },
+    student_sign_out(args){
+      if(!v4()) return notFound('student_sign_out');
+      tables.student_sessions = sessions().filter(x=>x.token!==args.p_token);
+      return { data:null, error:null };
+    },
+    reset_student_password(args, ctx){
+      if(!v4()) return notFound('reset_student_password');
+      const row = ctx.tables.students.find(r=>r.id===args.p_id);
+      const me = (ctx.tables.staff||[]).find(x=>x.user_id===ctx.uid);
+      if(!row || !me || !(me.role==='super_admin' || (me.role==='campus_admin' && me.campus_id===row.campus_id)))
+        return { data:null, error:{ code:'42501', message:"Only an admin of this student's campus can reset their password" } };
+      tables.student_credentials = creds().filter(c=>c.student_id!==args.p_id);
+      tables.student_sessions = sessions().filter(x=>x.student_id!==args.p_id);
+      return { data:null, error:null };
+    },
     grant_staff_role(args, ctx){
       const u = ctx.users.find(x=>x.email===args.p_email);
       if(!u) return { data:null, error:{ message:`No account uses ${args.p_email}. Ask them to create one under Staff sign in first.` } };
@@ -33,6 +94,10 @@
       return { data:row, error:null };
     },
   };
+  function v4(){ return (seed.schemaVersion||0) >= 4; }
+  function notFound(name){ return { data:null, error:{ code:'PGRST202', message:`Could not find the function public.${name}` } }; }
+  function creds(){ return tables.student_credentials = tables.student_credentials || []; }
+  function sessions(){ return tables.student_sessions = tables.student_sessions || []; }
   const listeners = [];
   const authListeners = [];
   let session = null;
