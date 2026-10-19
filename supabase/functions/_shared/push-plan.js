@@ -52,9 +52,14 @@ export function noticeMessage(n, today){
   };
 }
 
-/** Subscriptions following the notice's module on its campus. */
-export function noticeTargets(n, subs){
-  return subs.filter(s=>s.campus_id === n.campus_id && (s.codes || []).includes(n.code));
+/** Subscriptions following the notice's module on its campus. A notice for one course
+    (migration 004) only reaches subscriptions with a session of that module on that
+    course; `modules` must then hold those sessions (id, code, programme_id). */
+export function noticeTargets(n, subs, modules = []){
+  const out = subs.filter(s=>s.campus_id === n.campus_id && (s.codes || []).includes(n.code));
+  if(!n.programme_id) return out;
+  const onCourse = new Set(modules.filter(m=>m.code === n.code && m.programme_id === n.programme_id).map(m=>m.id));
+  return out.filter(s=>(s.module_ids || []).some(id=>onCourse.has(id)));
 }
 
 export function announcementMessage(a){
@@ -79,8 +84,9 @@ export function dueReminders({ subs, modules, notices, now }){
   const clock = localClock(now);
   const byId = new Map(modules.map(m=>[m.id, m]));
   const today = notices.filter(n=>n.notice_date === clock.isoDate);
-  const changeFor = (code, start)=>today
-    .filter(n=>n.code === code && CHANGE_KINDS.includes(n.kind) && (!n.start_time || n.start_time === start))
+  const changeFor = m=>today
+    .filter(n=>n.code === m.code && CHANGE_KINDS.includes(n.kind) && (!n.start_time || n.start_time === m.start_time)
+      && (!n.programme_id || n.programme_id === m.programme_id))
     .sort((a,b)=>(b.created_at || '').localeCompare(a.created_at || ''))[0];
   const out = [];
   for(const sub of subs){
@@ -93,7 +99,7 @@ export function dueReminders({ subs, modules, notices, now }){
       let start = toMinutes(m.start_time);
       if(start == null || seen.has(`${m.code}|${m.start_time}`)) continue;
       seen.add(`${m.code}|${m.start_time}`);
-      const change = changeFor(m.code, m.start_time);
+      const change = changeFor(m);
       if(change?.kind === 'cancelled') continue;
       const delay = change?.kind === 'late' ? (change.delay_minutes || 0) : 0;
       if(start + delay - lead !== clock.minutes) continue;
@@ -104,8 +110,9 @@ export function dueReminders({ subs, modules, notices, now }){
         tag: `class-${m.id}-${clock.isoDate}`,
       }});
     }
+    const onCourse = n=>!n.programme_id || (sub.module_ids || []).some(id=>{ const m = byId.get(id); return m && m.code === n.code && m.programme_id === n.programme_id; });
     for(const n of today){
-      if(!['test', 'extra'].includes(n.kind) || !(sub.codes || []).includes(n.code)) continue;
+      if(!['test', 'extra'].includes(n.kind) || !(sub.codes || []).includes(n.code) || !onCourse(n)) continue;
       const start = toMinutes(n.start_time);
       if(start == null || start - lead !== clock.minutes) continue;
       out.push({ sub, message: {

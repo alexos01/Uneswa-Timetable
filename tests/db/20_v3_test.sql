@@ -16,7 +16,7 @@ insert into public.modules (code, day, start_time, campus_id, programme_id) valu
 \set bsc    '''00000000-0000-0000-0000-0000000000a1'''
 \set bcom   '''00000000-0000-0000-0000-0000000000a2'''
 
-select public.t_expect('schema version is 3', null, $q$select 1 where public.app_schema_version() = 3$q$, 'rows:1');
+select public.t_expect('schema version is 3 or later', null, $q$select 1 where public.app_schema_version() >= 3$q$, 'rows:1');
 
 -- Granting the class rep role
 select public.t_expect('luyengo admin cannot add a kwaluseni class rep', :ladmin, $q$select public.grant_staff_role('rep@uneswa.test','class_rep','kwaluseni')$q$, 'error:42501');

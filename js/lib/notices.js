@@ -28,6 +28,19 @@ export function localIsoDate(d = new Date()){
   return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
 }
 
+/** The notices that apply to a student's ticked `sessions`: their module codes, and for a
+    notice posted to one course, only if they take that module on that course. */
+export function noticesFor(notices, sessions){
+  const codes = new Set(sessions.map(s=>s.code));
+  const onCourse = new Set(sessions.map(s=>`${s.code}|${s.programme_id}`));
+  return notices.filter(n=>codes.has(n.code) && (!n.programme_id || onCourse.has(`${n.code}|${n.programme_id}`)));
+}
+
+/** The courses a module runs on, to post a notice to one of them. */
+export function coursesForCode(modules, code){
+  return [...new Set(modules.filter(m=>m.code===code && m.programme_id).map(m=>m.programme_id))];
+}
+
 /** Notices for the given module codes from `today` on, soonest first. */
 export function upcomingNotices(notices, codes, today = localIsoDate()){
   const set = new Set(codes);

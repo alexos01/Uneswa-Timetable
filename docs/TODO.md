@@ -10,9 +10,10 @@ Nothing else in this list works until this is done.
 - [ ] Open **SQL Editor → New query**, paste [`supabase/migrations/001_campuses_and_roles.sql`](../supabase/migrations/001_campuses_and_roles.sql) and click **Run**.
 - [ ] In a new query, run [`supabase/migrations/002_announcements_and_notices.sql`](../supabase/migrations/002_announcements_and_notices.sql).
 - [ ] In a new query, run [`supabase/migrations/003_class_reps_late_notices_push.sql`](../supabase/migrations/003_class_reps_late_notices_push.sql).
+- [ ] In a new query, run [`supabase/migrations/004_notice_courses_timetable_pdf_student_passwords.sql`](../supabase/migrations/004_notice_courses_timetable_pdf_student_passwords.sql).
 - [ ] Reload the site. The header should now say **Kwaluseni campus**, and the top tabs should be **My Timetable · Announcements · Staff**. The **Lecturer** and **Class rep** tabs only appear once a lecturer or class rep signs in under Staff.
 
-All three files are safe to run again if something goes wrong halfway.
+All four files are safe to run again if something goes wrong halfway.
 
 ## 2. Send the missing details
 
@@ -47,6 +48,7 @@ CI proves the app builds, but only a real device can show that notifications arr
 - [ ] For **Luyengo** and **Mbabane**: ask each campus admin to open **Staff → Create a staff account**, then add their email under **Staff & lecturers** with the role *Campus admin*.
 - [ ] Upload the Luyengo and Mbabane timetables: switch campus, open **Class timetable**, click **Download CSV template**, fill it in Excel or Google Sheets, save as CSV and upload it. Use **AI Import** when all you have is the PDF.
 - [ ] Add lecturers the same way with the role *Lecturer*, then assign their module codes so they can post tests, mark a class as running late and move sessions. They sign in under **Staff** and land on their **Lecturer** tab.
+- [ ] As a lecturer, post a test for a module that runs on two courses (MAT111, say) and pick one under **Course**. Only students taking it on that course should see it; **All courses** reaches everyone on the module.
 - [ ] Add class reps with the role *Class rep* and assign the modules for their class. They sign in under **Staff** and land on their **Class rep** tab, where they can do what a lecturer can for those modules, and post announcements to their class.
 - [ ] Post a first announcement to check that students see it under **Announcements**.
 

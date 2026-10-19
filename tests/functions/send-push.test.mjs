@@ -139,3 +139,16 @@ test('the minute tick sends the class reminder that is due now', async ()=>{
   assert.equal(got[0].title, 'CSC111 starts in 10 min');
   assert.match(got[0].tag, /^class-now1[01]-\d{4}-\d{2}-\d{2}$/);
 });
+
+test('a notice for one course is pushed only to students taking the module on that course', async ()=>{
+  const record = { id:'n2', campus_id:'kwaluseni', code:'CSC111', kind:'test', notice_date: eswatiniNow().iso, start_time:'14:00', venue:'MPH', title:'Test 1', programme_id:'prog-bsc' };
+  pushes.length = 0;
+  modules = [{ id:'now10', code:'CSC111', programme_id:'prog-bed' }, { id:'other', code:'CSC111', programme_id:'prog-bsc' }];
+  let res = await call({ type:'INSERT', table:'class_notices', record });
+  assert.deepEqual(await res.json(), { sent:0, removed:0, failed:0 }, 'the subscriber takes CSC111 on B.Ed., not B.Sc.');
+
+  modules = [{ id:'now10', code:'CSC111', programme_id:'prog-bsc' }];
+  res = await call({ type:'INSERT', table:'class_notices', record });
+  assert.deepEqual(await res.json(), { sent:1, removed:0, failed:0 });
+  assert.equal(decrypt(pushes.find(x=>x.who === 'alive').body, alive).title, 'CSC111 Test: Test 1');
+});

@@ -1,15 +1,15 @@
 import { sb } from '../db.js';
-import { state } from '../state.js';
+import { progName, state } from '../state.js';
 import { esc, toast } from '../util.js';
-import { DELAY_CHOICES, NOTICE_KINDS, describeNotice, localIsoDate, upcomingNotices } from '../lib/notices.js';
+import { DELAY_CHOICES, NOTICE_KINDS, coursesForCode, describeNotice, localIsoDate, noticesFor, upcomingNotices } from '../lib/notices.js';
 import { WEEKDAYS } from '../lib/modules.js';
 
-/** The session of `code` on the weekday of `isoDate`, earliest first, or null. */
-function sessionOn(code, isoDate){
+/** The session of `code` (on course `programmeId`, if given) on the weekday of `isoDate`, earliest first, or null. */
+function sessionOn(code, isoDate, programmeId){
   const [y, m, d] = isoDate.split('-').map(Number);
   if(!y) return null;
   const day = WEEKDAYS[(new Date(y, m-1, d).getDay() + 6) % 7];
-  return state.modules.filter(s=>s.code===code && s.day===day)
+  return state.modules.filter(s=>s.code===code && s.day===day && (!programmeId || s.programme_id===programmeId))
     .sort((a,b)=>(a.start_time||'').localeCompare(b.start_time||''))[0] || null;
 }
 
@@ -23,6 +23,7 @@ export function renderNoticeForm(codes, { onPosted } = {}){
     <div class="formgrid">
       <div class="field"><label for="ntCode">Module</label><select id="ntCode">${codes.map(c=>`<option>${esc(c)}</option>`).join('')}</select></div>
       <div class="field"><label for="ntKind">Type</label><select id="ntKind">${kinds.map(([k,v])=>`<option value="${k}">${esc(v.label)}</option>`).join('')}</select></div>
+      ${state.caps.v4 ? '<div class="field wide"><label for="ntCourse">Course</label><select id="ntCourse"></select></div>' : ''}
       <div class="field" id="ntDelayField" hidden><label for="ntDelay">Late by</label><select id="ntDelay">${DELAY_CHOICES.map(m=>`<option value="${m}" ${m===15?'selected':''}>${m} minutes</option>`).join('')}</select></div>
       <div class="field"><label for="ntDate">Date</label><input id="ntDate" type="date" value="${localIsoDate()}"></div>
       <div class="field"><label for="ntStart">Start</label><input id="ntStart" type="time" step="600"></div>
@@ -34,18 +35,28 @@ export function renderNoticeForm(codes, { onPosted } = {}){
     <button class="btn terracotta" id="ntPost" ${codes.length?'':'disabled'}>Post notice</button>`;
   setTimeout(()=>{
     const q = id=>card.querySelector(id);
+    const course = ()=>q('#ntCourse')?.value || '';
+    // The courses the chosen module runs on: a test can be on one course only, in its own venue.
+    const fillCourses = ()=>{
+      const sel = q('#ntCourse');
+      if(!sel) return;
+      const ids = coursesForCode(state.modules, q('#ntCode').value);
+      sel.innerHTML = `<option value="">All courses</option>` + ids.map(id=>`<option value="${esc(id)}">${esc(progName(id))}</option>`).join('');
+    };
     // Late, cancelled and moved are about an existing class: fill in its time and venue.
     const prefill = ()=>{
       const kind = q('#ntKind').value;
       q('#ntDelayField').hidden = kind !== 'late';
       if(!['late','cancelled','moved'].includes(kind)) return;
-      const s = sessionOn(q('#ntCode').value, q('#ntDate').value);
+      const s = sessionOn(q('#ntCode').value, q('#ntDate').value, course());
       if(!s) return;
       q('#ntStart').value = s.start_time || '';
       q('#ntEnd').value = s.end_time || '';
       if(kind !== 'moved') q('#ntVenue').value = s.venue || '';
     };
-    ['#ntCode','#ntKind','#ntDate'].forEach(id=>q(id).addEventListener('change', prefill));
+    q('#ntCode').addEventListener('change', fillCourses);
+    ['#ntCode','#ntKind','#ntDate','#ntCourse'].forEach(id=>q(id)?.addEventListener('change', prefill));
+    fillCourses();
     prefill();
     q('#ntPost').onclick = async ()=>{
       const v = id=>q(id).value.trim();
@@ -54,23 +65,25 @@ export function renderNoticeForm(codes, { onPosted } = {}){
         title: v('#ntTitle')||null, details: v('#ntDetails')||null,
         author_name: state.staff?.display_name || null };
       if(row.kind === 'late') row.delay_minutes = Number(v('#ntDelay'));
+      if(course()) row.programme_id = course();
       if(!row.code || !row.notice_date){ toast('Choose a module and a date'); return; }
       const btn = card.querySelector('#ntPost'); btn.disabled = true;
       const { data, error } = await sb.from('class_notices').insert(row).select().single();
       btn.disabled = false;
       if(error){ toast('Could not post: '+error.message); return; }
       state.notices.push(data);
-      toast(`Notice posted for ${row.code}`);
+      toast(`Notice posted for ${row.code}${row.programme_id ? ' on '+progName(row.programme_id) : ''}`);
       onPosted && onPosted(data);
     };
   },0);
   return card;
 }
 
-/** Upcoming notices for `codes`; staff get a delete button. */
-export function renderNoticeList(codes, { title='Upcoming notices', canDelete=false, onChange } = {}){
+/** Upcoming notices for `codes`; staff get a delete button. A student's list passes their
+    ticked `sessions`, so a notice for one course only reaches students on that course. */
+export function renderNoticeList(codes, { title='Upcoming notices', canDelete=false, onChange, sessions = null } = {}){
   const card = document.createElement('div'); card.className = 'card';
-  const list = upcomingNotices(state.notices, codes);
+  const list = upcomingNotices(sessions ? noticesFor(state.notices, sessions) : state.notices, codes);
   card.innerHTML = `<h2><span class="htitle">${esc(title)}</span>${list.length ? ` <span class="tag">${list.length}</span>` : ''}</h2>` +
     (list.length ? list.map(n=>noticeRow(n, canDelete)).join('') : '<div class="muted">Nothing coming up.</div>');
   card.querySelectorAll('[data-delnotice]').forEach(b=>{
@@ -90,7 +103,7 @@ export function noticeRow(n, canDelete=false){
   const d = describeNotice(n);
   return `<div class="noticerow kind-${esc(n.kind)}">
     <div>${n.kind==='late' ? '' : `<span class="noticekind">${esc(d.kind.label)}</span> `}<b>${esc(d.heading)}</b>
-      <div class="muted">${esc(d.when)}${n.author_name?` · ${esc(n.author_name)}`:''}</div>
+      <div class="muted">${esc(d.when)}${n.programme_id?` · ${esc(progName(n.programme_id))}`:''}${n.author_name?` · ${esc(n.author_name)}`:''}</div>
       ${n.details?`<div class="noticedetails">${esc(n.details)}</div>`:''}</div>
     ${canDelete?`<button class="btn small danger" data-delnotice="${esc(n.id)}">Delete</button>`:''}
   </div>`;

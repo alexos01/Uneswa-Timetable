@@ -73,3 +73,10 @@ export function v3Seed(){
   s.tables.push_subscriptions = [];
   return s;
 }
+
+/** After migration 004: notices for one course, timetable PDF, student passwords. */
+export function v4Seed(){
+  const s = v3Seed();
+  s.schemaVersion = 4;
+  return s;
+}

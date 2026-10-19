@@ -23,6 +23,7 @@ export async function detectCapabilities(){
     const v = await sb.rpc('app_schema_version');
     if(v.error && isNetworkError(v.error)) throw v.error;
     state.caps.v3 = !v.error && v.data >= 3; // class reps, late notices, push (migration 003)
+    state.caps.v4 = !v.error && v.data >= 4; // notices for one course, timetable PDF, student passwords (migration 004)
   }
   return state.caps;
 }

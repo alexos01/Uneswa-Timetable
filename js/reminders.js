@@ -2,7 +2,7 @@ import { state } from './state.js';
 import { myModules } from './views/student.js';
 import { isNative, replaceScheduledReminders, showNow } from './platform.js';
 import { planReminders, reminderId } from './lib/reminders.js';
-import { CHANGE_KINDS, changeAlert, localIsoDate, unseenChanges, upcomingNotices } from './lib/notices.js';
+import { CHANGE_KINDS, changeAlert, localIsoDate, noticesFor, unseenChanges, upcomingNotices } from './lib/notices.js';
 import { syncPush } from './push.js';
 
 /* Class reminders.
@@ -27,7 +27,7 @@ export function currentPlan(now = new Date()){
   if(!student || !state.notif.enabled) return [];
   const sessions = myModules(student);
   const codes = [...new Set(sessions.map(s=>s.code))];
-  return planReminders({ sessions, notices: upcomingNotices(state.notices, codes), minutesBefore: state.notif.minutesBefore, now });
+  return planReminders({ sessions, notices: upcomingNotices(noticesFor(state.notices, sessions), codes), minutesBefore: state.notif.minutesBefore, now });
 }
 
 async function syncNativeReminders(){
@@ -42,10 +42,11 @@ const SEEN_KEY = 'uneswa_seen_changes';
 async function alertNewChanges(){
   const student = state.currentStudent;
   if(!student || !state.caps.notices) return;
-  const codes = [...new Set(myModules(student).map(m=>m.code))];
+  const sessions = myModules(student);
+  const codes = [...new Set(sessions.map(m=>m.code))];
   let seen = null;
   try{ seen = JSON.parse(localStorage.getItem(SEEN_KEY) || 'null'); }catch{}
-  const fresh = unseenChanges(state.notices, codes, seen || []);
+  const fresh = unseenChanges(noticesFor(state.notices, sessions), codes, seen || []);
   const current = state.notices.filter(n=>CHANGE_KINDS.includes(n.kind)).map(n=>n.id);
   try{ localStorage.setItem(SEEN_KEY, JSON.stringify(current)); }catch{}
   if(!seen || !state.notif.enabled) return;

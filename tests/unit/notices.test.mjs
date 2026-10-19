@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { upcomingNotices, describeNotice, formatDay, localIsoDate, noticeSummary, changeFor, unseenChanges, changeAlert } from '../../js/lib/notices.js';
+import { coursesForCode, noticesFor, upcomingNotices, describeNotice, formatDay, localIsoDate, noticeSummary, changeFor, unseenChanges, changeAlert } from '../../js/lib/notices.js';
 
 const notices = [
   { code:'CSC111', kind:'test', notice_date:'2026-10-20', start_time:'10:00' },
@@ -66,4 +66,24 @@ test('alert text says what changed', ()=>{
     { title:'CSC111 today 08:00: running 10 min late', body:'G.005' });
   assert.equal(changeAlert({ code:'MAT111', kind:'cancelled', notice_date:'2026-10-21', venue:'MPH' }, '2026-10-20').title, 'MAT111 2026-10-21: cancelled');
   assert.equal(changeAlert({ code:'MAT111', kind:'moved', notice_date:'2026-10-20', venue:'G.011' }, '2026-10-20').title, 'MAT111 today: moved to G.011');
+});
+
+test('a notice for one course applies only to students taking the module on that course', ()=>{
+  const bsc = [{ id:'a', code:'MAT111', programme_id:'bsc' }, { id:'b', code:'CSC111', programme_id:'bsc' }];
+  const bed = [{ id:'c', code:'MAT111', programme_id:'bed' }];
+  const notices = [
+    { id:'n1', code:'MAT111', programme_id:'bsc' },
+    { id:'n2', code:'MAT111', programme_id:null },
+    { id:'n3', code:'CSC111' },
+    { id:'n4', code:'ACF111' },
+  ];
+  assert.deepEqual(noticesFor(notices, bsc).map(n=>n.id), ['n1','n2','n3']);
+  assert.deepEqual(noticesFor(notices, bed).map(n=>n.id), ['n2']);
+  assert.deepEqual(noticesFor(notices, []), []);
+});
+
+test('the courses offered for a notice are the ones the module runs on', ()=>{
+  const modules = [{ code:'MAT111', programme_id:'bsc' }, { code:'MAT111', programme_id:'bsc' }, { code:'MAT111', programme_id:'bed' }, { code:'CSC111', programme_id:'bsc' }, { code:'MAT111', programme_id:null }];
+  assert.deepEqual(coursesForCode(modules, 'MAT111'), ['bsc','bed']);
+  assert.deepEqual(coursesForCode(modules, 'XYZ999'), []);
 });

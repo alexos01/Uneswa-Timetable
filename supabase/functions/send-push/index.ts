@@ -60,8 +60,15 @@ async function send(targets: { sub: Sub; message: Message }[]) {
 
 async function onNotice(record: any) {
   const subs = await subscriptions(q => q.eq('campus_id', record.campus_id).contains('codes', [record.code]));
+  let courseSessions: any[] = [];
+  if (record.programme_id) { // a notice for one course: only students with this module on that course
+    const { data, error } = await db.from('modules').select('id, code, programme_id')
+      .eq('campus_id', record.campus_id).eq('code', record.code).eq('programme_id', record.programme_id);
+    if (error) throw error;
+    courseSessions = data ?? [];
+  }
   const message = noticeMessage(record, localClock(new Date()).isoDate);
-  return send(noticeTargets(record, subs).map((sub: Sub) => ({ sub, message })));
+  return send(noticeTargets(record, subs, courseSessions).map((sub: Sub) => ({ sub, message })));
 }
 
 async function onAnnouncement(record: any) {
@@ -83,7 +90,7 @@ async function onTick() {
   const ids = [...new Set(subs.flatMap(s => s.module_ids ?? []))];
   const modules: any[] = [];
   for (let i = 0; i < ids.length; i += 200) { // keeps the request URL short
-    const { data, error } = await db.from('modules').select('id, code, day, start_time, end_time, venue').in('id', ids.slice(i, i + 200));
+    const { data, error } = await db.from('modules').select('id, code, day, start_time, end_time, venue, programme_id').in('id', ids.slice(i, i + 200));
     if (error) throw error;
     modules.push(...(data ?? []));
   }

@@ -62,3 +62,22 @@ test('announcements reach the campus, everyone, or one course and year', ()=>{
   assert.deepEqual(announcementTargets({ campus_id:'kwaluseni', programme_id:'p', year:2 }, subs, ['CSC111','CSC211']).map(s=>s.endpoint), ['b']);
   assert.equal(announcementMessage({ id:'x', title:'T', body:'a\n\nb' }).body, 'a b');
 });
+
+test('a notice for one course reaches only students taking the module on that course', ()=>{
+  const sessions = [
+    { id:'bsc1', code:'MAT111', day:'Monday', start_time:'14:00', venue:'MPH', programme_id:'bsc' },
+    { id:'bed1', code:'MAT111', day:'Monday', start_time:'14:00', venue:'G.010', programme_id:'bed' },
+  ];
+  const bscSub = { endpoint:'bsc', campus_id:'kwaluseni', module_ids:['bsc1'], codes:['MAT111'], minutes_before:10, reminders:true };
+  const bedSub = { endpoint:'bed', campus_id:'kwaluseni', module_ids:['bed1'], codes:['MAT111'], minutes_before:10, reminders:true };
+  const test1 = { id:'t1', campus_id:'kwaluseni', code:'MAT111', kind:'test', notice_date:'2026-10-19', start_time:'14:00', venue:'MPH', programme_id:'bsc' };
+  assert.deepEqual(noticeTargets(test1, [bscSub, bedSub], sessions).map(s=>s.endpoint), ['bsc']);
+  assert.deepEqual(noticeTargets({ ...test1, programme_id:null }, [bscSub, bedSub]).map(s=>s.endpoint), ['bsc','bed'], 'no course: everyone on the module');
+
+  const due = dueReminders({ subs:[bscSub, bedSub], modules:sessions, notices:[test1], now: at('13:50') });
+  assert.deepEqual(due.map(d=>[d.sub.endpoint, d.message.tag]), [['bsc','class-bsc1-2026-10-19'], ['bsc','notice-t1-start'], ['bed','class-bed1-2026-10-19']]);
+
+  const cancelBed = { id:'c1', code:'MAT111', kind:'cancelled', notice_date:'2026-10-19', start_time:'14:00', programme_id:'bed' };
+  const afterCancel = dueReminders({ subs:[bscSub, bedSub], modules:sessions, notices:[cancelBed], now: at('13:50') });
+  assert.deepEqual(afterCancel.map(d=>d.sub.endpoint), ['bsc'], 'a cancellation on B.Ed. leaves the B.Sc. class alone');
+});

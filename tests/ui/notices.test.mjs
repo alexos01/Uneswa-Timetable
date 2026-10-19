@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer, launch, openApp, tables } from './helpers.mjs';
-import { campusSeed, v3Seed } from './fixtures.mjs';
+import { campusSeed, v3Seed, v4Seed } from './fixtures.mjs';
 
 let server, browser;
 before(async ()=>{ server = await startServer(); browser = await launch(); });
@@ -82,4 +82,41 @@ test('a late notice posted while the app is open alerts the student once', async
   assert.equal(shown[0].tag, 'notice-new');
   assert.match(await page.textContent('.today-banner'), /Running 10 min late/);
   assert.deepEqual(errors, []);
+});
+
+test('a notice for one course reaches only the students taking the module on that course', async ()=>{
+  // CSC111 runs on B.Sc. (Mon and Wed) and on BCom (Fri 11:00, G.010). 23 Oct 2026 is a Friday.
+  const seed = v4Seed();
+  seed.tables.class_notices = [];
+  const { page, errors } = await openApp(browser, server.url, seed, { fixedTime:'2026-10-23T06:30:00' });
+  await staffSignIn(page, 'lect@test.local');
+  await page.waitForSelector('#ntCourse');
+  assert.deepEqual(await page.locator('#ntCourse option').allTextContents(), ['All courses', 'B.Sc. Computer Science', 'Bachelor of Commerce']);
+  await page.selectOption('#ntKind', 'cancelled');
+  await page.selectOption('#ntCourse', { label:'Bachelor of Commerce' });
+  assert.equal(await page.inputValue('#ntStart'), '11:00', "the BCom class's time fills in");
+  assert.equal(await page.inputValue('#ntVenue'), 'G.010');
+  await page.click('#ntPost');
+  await page.waitForFunction(()=>window.__FAKE_TABLES__.class_notices.length === 1);
+  const n = (await tables(page)).class_notices[0];
+  assert.deepEqual([n.code, n.kind, n.programme_id, n.start_time], ['CSC111', 'cancelled', 'prog-bcom', '11:00']);
+  await page.waitForSelector('text=Bachelor of Commerce · Dr Lecturer');
+  assert.deepEqual(errors, []);
+
+  const students = [
+    { id:'202100401', name:'BSc Student', campus_id:'kwaluseni', module_ids:['k1','k2'], semester_version:1, history:[] },
+    { id:'202100402', name:'BCom Student', campus_id:'kwaluseni', module_ids:['k6'], semester_version:1, history:[] },
+  ];
+  for(const [id, sees] of [['202100401', false], ['202100402', true]]){
+    const s = v4Seed();
+    s.tables.class_notices = [n];
+    s.tables.students = students;
+    const { page: p, errors: errs } = await openApp(browser, server.url, s, { fixedTime:'2026-10-23T06:30:00', localStorage:{ uneswa_last_student:id } });
+    await p.waitForSelector('table.grid');
+    const text = await p.textContent('#main');
+    assert.equal(/Class cancelled/.test(text), sees, `${id} ${sees ? 'sees' : 'does not see'} the BCom cancellation`);
+    if(sees) assert.match(text, /Fri 23 Oct, 11:00.*Bachelor of Commerce/);
+    assert.deepEqual(errs, []);
+    await p.close();
+  }
 });

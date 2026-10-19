@@ -13,7 +13,7 @@ import { facName, moduleYear, progName, programmesInFaculty, state, yearLabel } 
 import { esc, toast } from '../util.js';
 import { searchModules, sortSessions } from '../lib/modules.js';
 import { buildCalendar } from '../lib/calendar.js';
-import { changeFor, formatDay, localIsoDate, noticeSummary } from '../lib/notices.js';
+import { changeFor, formatDay, localIsoDate, noticeSummary, noticesFor } from '../lib/notices.js';
 import { MAX_MINUTES_BEFORE, MINUTES_SHORTCUTS, MIN_MINUTES_BEFORE, parseMinutesBefore } from '../lib/reminders.js';
 
 /* Student view */
@@ -123,7 +123,7 @@ export function renderStudent(){
   const nc = nextClass(student);
   const banner=document.createElement('div');
   if(nc){
-    const change = changeFor(state.notices, nc.mod.code, localIsoDate(nc.date), nc.mod.start_time);
+    const change = changeFor(noticesFor(state.notices, myModules(student)), nc.mod.code, localIsoDate(nc.date), nc.mod.start_time);
     const when = nc.when.charAt(0).toUpperCase() + nc.when.slice(1);
     banner.className='today-banner';
     banner.innerHTML = `<h2 class="next">${esc(when)} ${esc(nc.mod.start_time)} · ${esc(nc.mod.code)}</h2>
@@ -172,8 +172,8 @@ export function renderStudent(){
   const right=document.createElement('div');
   right.appendChild(renderMyCourses(student));
   if(state.caps.notices){
-    const codes = [...new Set(myModules(student).map(m=>m.code))];
-    right.appendChild(renderNoticeList(codes, { title:'Coming up: tests and class changes' }));
+    const sessions = myModules(student);
+    right.appendChild(renderNoticeList([...new Set(sessions.map(m=>m.code))], { title:'Coming up: tests and class changes', sessions }));
   }
   right.appendChild(renderWeekGrid(student));
   right.appendChild(renderExamsCard(student));
