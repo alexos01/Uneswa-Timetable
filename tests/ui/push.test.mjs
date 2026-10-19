@@ -7,13 +7,16 @@ let server, browser;
 before(async ()=>{ server = await startServer(); browser = await launch(); });
 after(async ()=>{ await browser?.close(); await server?.close(); });
 
-// js/config.js ships with push off; the test turns it on with a dummy key.
-async function withPushKey({ context }){
-  await context.route('**/js/config.js', async route=>{
-    const res = await route.fetch();
-    route.fulfill({ response: res, body: (await res.text()).replace('PUSH_PUBLIC_KEY = ""', 'PUSH_PUBLIC_KEY = "BPushTestKey"') });
-  });
+// The tests set the push key themselves, whatever js/config.js ships with.
+function pushKey(key){
+  return async ({ context })=>{
+    await context.route('**/js/config.js', async route=>{
+      const res = await route.fetch();
+      route.fulfill({ response: res, body: (await res.text()).replace(/PUSH_PUBLIC_KEY = "[^"]*"/, `PUSH_PUBLIC_KEY = "${key}"`) });
+    });
+  };
 }
+const withPushKey = pushKey('BPushTestKey');
 
 // A stand-in for the browser's push service, which needs Google's servers.
 function fakePushService(){
@@ -78,7 +81,7 @@ test('turning reminders on subscribes this browser with the student\'s sessions;
 test('without a push key the browser is not subscribed', async ()=>{
   const seed = seedStudent();
   const { page, errors } = await openApp(browser, server.url, seed, {
-    initScript: fakePushService,
+    initScript: fakePushService, beforeLoad: pushKey(''),
     localStorage:{ uneswa_last_student:'202100200', uneswa_notif: JSON.stringify({ enabled:true, minutesBefore:10 }) },
   });
   await page.waitForSelector('#notifToggle');
