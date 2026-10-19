@@ -1,19 +1,27 @@
 -- Connects the database to the send-push Edge Function. Run once in the SQL editor
--- AFTER deploying the function (see README.md in this folder), with the two
--- placeholders replaced:
---   <PROJECT_REF>   the part before .supabase.co in your project URL
---   <PUSH_SECRET>   the same value you set as the PUSH_WEBHOOK_SECRET secret
--- Safe to run again.
+-- AFTER deploying the function (see README.md in this folder). Safe to run again.
+--
+-- The webhook secret is read from Supabase Vault and never written in this file,
+-- which is public. Store it once, with the same value as the function's
+-- PUSH_WEBHOOK_SECRET secret, in its own SQL editor query (not saved anywhere):
+--   select vault.create_secret('<the PUSH_WEBHOOK_SECRET value>', 'push_webhook_secret');
+-- To change it later, see "Changing the webhook secret" in README.md.
 
 create extension if not exists pg_net;
 create extension if not exists pg_cron;
 
 create or replace function public.call_send_push(payload jsonb) returns void
 language plpgsql security definer set search_path = public as $$
+declare secret text;
 begin
+  select decrypted_secret into secret from vault.decrypted_secrets where name = 'push_webhook_secret';
+  if secret is null then
+    raise warning 'send-push not called: no push_webhook_secret in Vault';
+    return; -- a missing secret must never stop a notice or announcement being saved
+  end if;
   perform net.http_post(
     url     := 'https://scmedarqqmpuhgdksthl.supabase.co/functions/v1/send-push',
-    headers := jsonb_build_object('Content-Type', 'application/json', 'x-push-secret', '51cb0b37d4df4d1fad2f149fc10f63d2e6d0da8acea72c0efcf9739a3bf23fca'),
+    headers := jsonb_build_object('Content-Type', 'application/json', 'x-push-secret', secret),
     body    := payload);
 end;
 $$;

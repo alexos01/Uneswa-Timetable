@@ -34,11 +34,41 @@ Needs migration `003_class_reps_late_notices_push.sql`, the [Supabase CLI](https
 
    `--no-verify-jwt` is needed because the database calls the function with the webhook secret, not a user's login. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are provided automatically.
 
-4. Open [`setup.sql`](setup.sql), replace `<PROJECT_REF>` and `<PUSH_SECRET>`, and run it in **SQL Editor → New query**. This adds the triggers on `class_notices` and `announcements`, plus a `pg_cron` job that calls the function every minute.
+4. Store the same webhook secret in Supabase Vault. In **SQL Editor → New query**, run this once, then close the query without saving it:
 
-5. Check it works: in a desktop Chrome window, sign in as a student, tick a module, and turn on **Reminders**. Then, as a lecturer, post a **Running late** notice for that module. A notification should appear even with the tab closed. **Edge Functions → send-push → Logs** shows each call and how many messages were sent.
+   ```sql
+   select vault.create_secret('<the PUSH_WEBHOOK_SECRET value>', 'push_webhook_secret');
+   ```
+
+   Never write the secret into `setup.sql` or any other file in this repo: the repo is public.
+
+5. Run [`setup.sql`](setup.sql) as it is in **SQL Editor → New query**. It reads the secret from Vault, and adds the triggers on `class_notices` and `announcements`, plus a `pg_cron` job that calls the function every minute.
+
+6. Check it works: in a desktop Chrome window, sign in as a student, tick a module, and turn on **Reminders**. Then, as a lecturer, post a **Running late** notice for that module. A notification should appear even with the tab closed. **Edge Functions → send-push → Logs** shows each call and how many messages were sent.
 
 On an iPhone, push only works after the site is added to the Home Screen (Share → Add to Home Screen) and opened from there (iOS 16.4 or later).
+
+## Changing the webhook secret
+
+Do this if the secret is ever seen by someone who shouldn't have it, for example because it was committed. Anyone who has it can make the function send notifications to every subscribed student. The two steps should be done close together; in between, pushes are refused.
+
+1. Set a new secret on the function. The value is generated and used without being printed:
+
+   ```sh
+   NEW_SECRET=$(openssl rand -hex 32)
+   supabase secrets set PUSH_WEBHOOK_SECRET="$NEW_SECRET" --project-ref scmedarqqmpuhgdksthl
+   echo "$NEW_SECRET" | xclip -selection clipboard   # or pbcopy on a Mac; copy it for step 2
+   ```
+
+2. In **SQL Editor → New query**, paste it into this and run it, then close the query without saving:
+
+   ```sql
+   select vault.update_secret(id, '<new secret>') from vault.secrets where name = 'push_webhook_secret';
+   ```
+
+   If `setup.sql` was last run with the secret written inside it, run the current `setup.sql` again afterwards (step 5 above), and create the Vault entry with `vault.create_secret` instead of updating it.
+
+3. Check **Edge Functions → send-push → Logs**: calls should get 200, not 401.
 
 ## Turning it off
 
