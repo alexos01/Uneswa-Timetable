@@ -1,6 +1,6 @@
 # UNESWA Timetable
 
-Personal class and exam timetable for University of Eswatini students. Pick your campus, faculty, course and year, tick your modules, and the weekly timetable builds itself. It exports to PDF, works offline, and reminds you before class and when a class is late, cancelled or moved.
+Personal class and exam timetable for University of Eswatini students. Pick your campus, faculty, course and year, tick your modules, and the weekly timetable builds itself. It exports to PDF and to your calendar, works offline, and reminds you before class and when a class is late, cancelled or moved.
 
 - **Web:** https://alexos01.github.io/Uneswa-Timetable/ (GitHub Pages, served straight from `main`). It can be installed from the browser and opens with no connection; changes made offline sync when the connection returns.
 - **Android / iOS:** the same code inside a [Capacitor](https://capacitorjs.com) shell, with reminders that fire when the app is closed
@@ -50,8 +50,8 @@ The dev server talks to the live Supabase project in `js/config.js`. When you're
 
 | Command | What it checks | Needs |
 | --- | --- | --- |
-| `npm test` | Pure logic: search scoping, reminder and push planning, notices, CSV reading, the service worker's file list | Node |
-| `npm run test:ui` | The real app in Chromium against an in-memory Supabase fake: sign-in, module picking, search, PDF and CSV, offline start and sync, the service worker, push subscription, campuses, staff roles, lecturer and class rep tabs, late notices, announcements, CSV upload | Chromium or Chrome (set `CHROMIUM_PATH` if it isn't in `/usr/bin`) |
+| `npm test` | Pure logic: search scoping, reminder and push planning, notices, CSV reading, the calendar file, the service worker's file list | Node |
+| `npm run test:ui` | The real app in Chromium against an in-memory Supabase fake: sign-in, module picking, search, PDF, CSV and calendar export, offline start and sync, the service worker, push subscription, campuses, staff roles, lecturer and class rep tabs, late notices, announcements, CSV upload | Chromium or Chrome (set `CHROMIUM_PATH` if it isn't in `/usr/bin`) |
 | `npm run test:db` | Applies the migrations twice to a throwaway Postgres and checks 70 row-level-security rules | Docker |
 | `npm run test:functions` | Runs the send-push Edge Function under Deno against a stand-in Supabase and push service, and decrypts what it sends | Deno, openssl |
 

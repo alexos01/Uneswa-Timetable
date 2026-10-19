@@ -12,6 +12,7 @@ import { render } from '../render.js';
 import { facName, moduleYear, progName, programmesInFaculty, state, yearLabel } from '../state.js';
 import { esc, toast } from '../util.js';
 import { searchModules, sortSessions } from '../lib/modules.js';
+import { buildCalendar } from '../lib/calendar.js';
 import { changeFor, formatDay, localIsoDate, noticeSummary } from '../lib/notices.js';
 import { MAX_MINUTES_BEFORE, MINUTES_SHORTCUTS, MIN_MINUTES_BEFORE, parseMinutesBefore } from '../lib/reminders.js';
 
@@ -256,6 +257,14 @@ export async function toggleModuleGroup(student, ids, checked){
   render();
 }
 
+/** The student's classes and exams as an .ics file for their phone or Google calendar. */
+function exportCalendar(student){
+  const ics = buildCalendar({ sessions: myModules(student), exams: myExams(student), calendarName: `UNESWA Timetable (${student.id})` });
+  saveText(ics, `${(student.name||student.id).trim().replace(/[^A-Za-z0-9.]+/g, '-')}-timetable.ics`, 'text/calendar')
+    .then(how=>toast(how === 'shared' ? 'Calendar file ready: choose your calendar app' : 'Calendar file downloaded. Open it to add your classes to your calendar.'))
+    .catch(err=>{ if(!/cancel/i.test(err?.message||'')) toast('Could not save the calendar file: '+(err?.message||err)); });
+}
+
 function exportCourseCsv(programmeId, year){
   const { sessions } = courseTimetable(programmeId, year);
   const prog = state.programmes.find(p=>p.id===programmeId);
@@ -338,7 +347,7 @@ export function renderMyCourses(student){
 export function renderWeekGrid(student){
   const card=document.createElement('div'); card.className='card';
   const mods = myModules(student);
-  card.innerHTML = `<h2><span class="htitle">Weekly timetable</span>${mods.length ? ' <button class="btn small terracotta" id="exportPdfBtn">Export PDF</button>' : ''}</h2>`;
+  card.innerHTML = `<h2><span class="htitle">Weekly timetable</span>${mods.length ? ' <span class="row"><button class="btn small secondary" id="exportIcsBtn">Add to calendar</button><button class="btn small terracotta" id="exportPdfBtn">Export PDF</button></span>' : ''}</h2>`;
   if(mods.length===0){ card.appendChild(Object.assign(document.createElement('div'),{className:'empty-state',textContent:'Your week fills in as you add modules.'})); return card; }
   const table=document.createElement('table'); table.className='grid';
   let thead='<tr><th class="timecol">Time</th>'+DAYS.map(d=>`<th>${d}</th>`).join('')+'</tr>';
@@ -356,7 +365,10 @@ export function renderWeekGrid(student){
   const scroller = document.createElement('div'); scroller.className = 'tablewrap'; // scrolls sideways on a phone
   scroller.appendChild(table);
   card.appendChild(scroller);
-  setTimeout(()=>{ document.getElementById('exportPdfBtn').onclick = ()=>exportPdf(student); },0);
+  setTimeout(()=>{
+    document.getElementById('exportPdfBtn').onclick = ()=>exportPdf(student);
+    document.getElementById('exportIcsBtn').onclick = ()=>exportCalendar(student);
+  },0);
   return card;
 }
 

@@ -1,5 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { startServer, launch, openApp, tables } from './helpers.mjs';
 import { legacySeed, ids } from './fixtures.mjs';
 
@@ -40,6 +41,23 @@ test('timetable exports as a PDF', async ()=>{
   await page.waitForSelector('#exportPdfBtn');
   const [download] = await Promise.all([ page.waitForEvent('download'), page.click('#exportPdfBtn') ]);
   assert.match(download.suggestedFilename(), /Test-Student-timetable\.pdf/);
+  assert.deepEqual(errors, []);
+});
+
+test('timetable downloads as a calendar file with the ticked classes and their exam', async ()=>{
+  const { page, errors } = await openApp(browser, server.url, legacySeed(), { fixedTime:'2026-10-21T09:00:00' });
+  await signIn(page);
+  await page.selectOption('#facSel', ids.FAC_SCI);
+  await page.selectOption('#progSel', ids.BSC_CS);
+  await page.locator('#modList .modrow', { hasText:'CSC111' }).locator('input').check();
+  await page.waitForSelector('#exportIcsBtn');
+  const [download] = await Promise.all([ page.waitForEvent('download'), page.click('#exportIcsBtn') ]);
+  assert.match(download.suggestedFilename(), /Test-Student-timetable\.ics/);
+  const ics = await readFile(await download.path(), 'utf8');
+  assert.equal(ics.match(/BEGIN:VEVENT/g).length, 3, 'two CSC111 sessions and the CSC111 exam');
+  assert.match(ics, /SUMMARY:CSC111 exam/);
+  assert.match(ics, /RRULE:FREQ=WEEKLY;UNTIL=20261204T215959Z/, 'until the day before the 5 Dec exam');
+  assert.match(await page.textContent('#toast'), /Calendar file downloaded/);
   assert.deepEqual(errors, []);
 });
 

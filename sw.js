@@ -21,6 +21,7 @@ const APP_FILES = [
   'js/config.js',
   'js/db.js',
   'js/lib/announcements.js',
+  'js/lib/calendar.js',
   'js/lib/csv.js',
   'js/lib/modules.js',
   'js/lib/notices.js',
