@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { searchModules } from '../../js/lib/modules.js';
+import { coursesOfStudent, searchModules } from '../../js/lib/modules.js';
 
 const mods = [
   { id:'a', code:'CSC111', day:'Wednesday', start_time:'10:00', programme_id:'cs' },
@@ -23,4 +23,11 @@ test('electives mode lists the same code once per course, never merged', ()=>{
 test('no course chosen searches everything loaded', ()=>{
   assert.equal(searchModules(mods, 'acf').length, 1);
   assert.deepEqual(searchModules(mods, '   '), []);
+});
+
+test('a student\'s course is the one most of their modules come from', ()=>{
+  assert.deepEqual(coursesOfStudent(['a','b','c','d'], mods), ['bcom','cs'], 'bcom has two codes, cs one');
+  assert.deepEqual(coursesOfStudent(['a','b'], mods), ['cs'], 'two sessions of one code count once');
+  assert.deepEqual(coursesOfStudent([], mods), []);
+  assert.deepEqual(coursesOfStudent(['gone'], mods), [], 'sessions deleted since are ignored');
 });

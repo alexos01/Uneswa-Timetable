@@ -104,3 +104,21 @@ test('admin publishes an announcement that students then see', async ()=>{
   assert.match(await page.textContent('.announcements'), /Library closed Friday/);
   assert.deepEqual(errors, []);
 });
+
+test('students list shows the course worked out from the ticked modules', async ()=>{
+  const seed = campusSeed();
+  seed.tables.students = [
+    { id:'202401001', name:'Cs Student', campus_id:'kwaluseni', programme_id:null, module_ids:['k1','k2','k3','k5'], updated_at:'2026-10-01T08:00:00Z' },
+    { id:'202401002', name:'New Student', campus_id:'kwaluseni', programme_id:null, module_ids:[], updated_at:'2026-10-02T08:00:00Z' },
+  ];
+  const { page, errors } = await openApp(browser, server.url, seed);
+  await staffSignIn(page, 'kadmin@test.local');
+  await page.click('[data-t="students"]');
+  await page.waitForSelector('#stuRows tr td');
+  const course = async id=>page.locator('#stuRows tr', { hasText:id }).locator('td').nth(2);
+  assert.equal((await (await course('202401001')).textContent()).trim(), 'B.Sc. Computer Science +1');
+  assert.equal(await (await course('202401001')).locator('[title]').getAttribute('title'), 'Bachelor of Commerce');
+  assert.equal((await (await course('202401002')).textContent()).trim(), 'No modules yet');
+  assert.doesNotMatch(await page.textContent('#stuRows'), /Unassigned/);
+  assert.deepEqual(errors, []);
+});

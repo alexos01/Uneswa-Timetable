@@ -2,9 +2,18 @@ import { DAYS } from '../config.js';
 import { fetchAllRows, sb } from '../db.js';
 import { progName, state } from '../state.js';
 import { esc, toast } from '../util.js';
+import { coursesOfStudent } from '../lib/modules.js';
 import { groupModulesByCode } from './student.js';
 
 /* Students directory */
+
+/** The Course cell: the student's main course, with any other courses they take modules from in the tooltip. */
+function courseCell(s){
+  if(s.programme_id) return esc(progName(s.programme_id));
+  const [main, ...rest] = coursesOfStudent(s.module_ids, state.modules).map(progName);
+  if(!main) return '<span class="muted">No modules yet</span>';
+  return rest.length ? `${esc(main)} <span class="muted" title="${esc(rest.join(', '))}">+${rest.length}</span>` : esc(main);
+}
 export async function loadStudentsList(){
   const byCampus = state.caps.campuses ? (q=>q.eq('campus_id', state.campusId)) : null;
   try{ state.students = await fetchAllRows('students', 'updated_at', false, byCampus); }
@@ -24,7 +33,7 @@ export function renderAdminStudents(){
   function refresh(){
     const rows = state.students.filter(s=>matches(s,state.studentSearch));
     card.querySelector('#stuRows').innerHTML = rows.map(s=>`<tr>
-      <td>${esc(s.id)}</td><td>${s.name ? esc(s.name) : '<span class="muted">No name given</span>'}</td><td>${esc(progName(s.programme_id))}</td>
+      <td>${esc(s.id)}</td><td>${s.name ? esc(s.name) : '<span class="muted">No name given</span>'}</td><td>${courseCell(s)}</td>
       <td>${(s.module_ids||[]).length}</td><td>${s.updated_at?new Date(s.updated_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }):''}</td>
       <td class="row"><button class="btn small secondary" data-edit="${esc(s.id)}">Edit</button>
       <button class="btn small danger" data-del="${esc(s.id)}">Delete</button></td></tr>`).join('')

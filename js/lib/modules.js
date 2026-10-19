@@ -29,3 +29,19 @@ export function searchModules(modules, query, { programmeId = '', allCourses = f
     .sort((a,b)=>a.code.localeCompare(b.code) || String(a.programme_id).localeCompare(String(b.programme_id)))
     .slice(0, limit);
 }
+
+/**
+ * The courses a student's ticked sessions come from, the course with the most
+ * module codes first. Students don't record a course, so this is what the staff
+ * Students list shows. Ties keep the order the courses were first met.
+ */
+export function coursesOfStudent(moduleIds, modules){
+  const ticked = new Set(moduleIds||[]);
+  const codes = new Map();
+  for(const m of modules){
+    if(!ticked.has(m.id) || !m.programme_id) continue;
+    if(!codes.has(m.programme_id)) codes.set(m.programme_id, new Set());
+    codes.get(m.programme_id).add(m.code);
+  }
+  return [...codes.entries()].sort((a,b)=>b[1].size-a[1].size).map(([pid])=>pid);
+}
