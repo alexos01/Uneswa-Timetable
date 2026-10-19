@@ -132,20 +132,20 @@ a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
 </section>
 
 <section id="status">
-  <h2>Status on 14 Oct 2026</h2>
-  <p>Everything in the delivery plan is on <code>main</code>, including phase 2 (offline web app, push, class reps, late notices, CSV timetables). The live database has migrations 001 and 002; the phase 2 features that need 003 stay hidden until it is run.</p>
+  <h2>Status on 19 Oct 2026</h2>
+  <p>Everything in the delivery plan is built, including phase 2 (offline web app, push, class reps, late notices, CSV timetables) and the changes from Lwandile's feedback of 17 Oct 2026 (student passwords, course notices, the official timetable PDF, calendar export, any reminder time, opening without waiting for the server). The live database had migrations 001 and 002 when last checked; features that need 003 or 004 stay hidden until those are run.</p>
   <div class="tbl"><table>
     <thead><tr><th>Item</th><th>State</th><th>Evidence</th></tr></thead>
     <tbody>
-      <tr><td>Unit tests (search, reminders, push plan, notices, CSV, service worker files)</td><td><span class="chip yes">37 passing</span></td><td><code>npm test</code>, locally and in CI</td></tr>
-      <tr><td>UI tests against an in-memory Supabase</td><td><span class="chip yes">35 passing</span></td><td><code>npm run test:ui</code>, locally and in CI</td></tr>
-      <tr><td>Migrations + RLS rules on Postgres 16</td><td><span class="chip yes">70 checks passing</span></td><td><code>npm run test:db</code>, applied twice to prove idempotency</td></tr>
-      <tr><td>send-push Edge Function under Deno</td><td><span class="chip yes">3 passing</span></td><td><code>npm run test:functions</code>: real Web Push encryption, decrypted and checked</td></tr>
+      <tr><td>Unit tests (search, reminders, push plan, notices, CSV, calendar file, service worker files)</td><td><span class="chip yes">47 passing</span></td><td><code>npm test</code>, locally and in CI</td></tr>
+      <tr><td>UI tests against an in-memory Supabase</td><td><span class="chip yes">48 passing</span></td><td><code>npm run test:ui</code>, locally and in CI</td></tr>
+      <tr><td>Migrations, RLS and Storage rules, student sign-in functions on Postgres 16</td><td><span class="chip yes">123 checks passing</span></td><td><code>npm run test:db</code>, applied twice to prove idempotency</td></tr>
+      <tr><td>send-push Edge Function under Deno</td><td><span class="chip yes">4 passing</span></td><td><code>npm run test:functions</code>: real Web Push encryption, decrypted and checked</td></tr>
       <tr><td>Android debug APK</td><td><span class="chip yes">builds in CI</span></td><td>Artifact <code>uneswa-timetable-debug-apk</code> on each Actions run</td></tr>
       <tr><td>iOS simulator build</td><td><span class="chip yes">builds in CI</span></td><td>Unsigned, macOS runner</td></tr>
       <tr><td>Live site after the push</td><td><span class="chip yes">loads</span></td><td>Checked on GitHub Pages against the real database on 14 Oct 2026: campus header, Announcements, Lecturer and Staff tabs, and it reopens with no connection</td></tr>
       <tr><td>Reminders and PDF sharing on a real phone</td><td><span class="chip part">not yet tested</span></td><td>Needs the APK installed on a device. Emulators and CI can't confirm notification delivery.</td></tr>
-      <tr><td>Migrations on the live project</td><td><span class="chip part">001 + 002 run, 003 not run</span></td><td>Seen on 13 Oct 2026 by loading the app against the live database: campus header and Announcements/Lecturer tabs present, <code>app_schema_version()</code> missing</td></tr>
+      <tr><td>Migrations on the live project</td><td><span class="chip part">001 + 002 run, 003 + 004 not run</span></td><td>Seen on 13 Oct 2026 by loading the app against the live database: campus header and Announcements tab present, <code>app_schema_version()</code> missing. 004 was written on 19 Oct 2026.</td></tr>
       <tr><td>Web Push on the live project</td><td><span class="chip part">off</span></td><td>Needs VAPID keys, the function deployed and <code>setup.sql</code> run; see Risks</td></tr>
       <tr><td>Store releases</td><td><span class="chip no">not started</span></td><td>Needs developer accounts and signing keys</td></tr>
     </tbody>
@@ -191,7 +191,7 @@ flowchart LR
   GP --> IDB[("IndexedDB on the device<br/>campus timetable + outbox")]
   AND --> IDB
   IOS --> IDB
-  GP --> SB[("Supabase<br/>Postgres + RLS, Auth, Realtime")]
+  GP --> SB[("Supabase<br/>Postgres + RLS, Auth,<br/>Realtime, Storage")]
   AND --> SB
   IOS --> SB
   SB -- "trigger on new notice<br/>or announcement" --> FN["Edge Function<br/>send-push"]
@@ -202,12 +202,14 @@ flowchart LR
   <div class="tbl"><table>
     <thead><tr><th>Part</th><th>What it does</th><th>Runs on</th></tr></thead>
     <tbody>
-      <tr><td>Web app</td><td>Everything students and staff see: timetable, tabs, admin, PDF and CSV export</td><td>Browser, from GitHub Pages</td></tr>
+      <tr><td>Web app</td><td>Everything students and staff see: timetable, tabs, admin, PDF, CSV and calendar export</td><td>Browser, from GitHub Pages</td></tr>
       <tr><td>Service worker <code>sw.js</code></td><td>Keeps every app file so the site installs and opens offline; shows push messages; brings the app forward when a notification is tapped</td><td>Browser only</td></tr>
-      <tr><td>Device store</td><td>The campus timetable and the student's record, plus an outbox of changes made offline</td><td>IndexedDB in the browser or phone app</td></tr>
+      <tr><td>Device store</td><td>The campus timetable, the student's record and the official timetable PDF, plus an outbox of changes made offline. The student's sign-in token is in <code>localStorage</code></td><td>IndexedDB in the browser or phone app</td></tr>
       <tr><td>Capacitor shell</td><td>Wraps the same files as an Android and iPhone app; adds scheduled local notifications, the share sheet and the back button</td><td>Phone</td></tr>
       <tr><td>Supabase Postgres</td><td>All data. Row-level security decides who may change what</td><td>Supabase</td></tr>
-      <tr><td>Supabase Auth</td><td>Email and password sign-in for staff, lecturers and class reps. Students have no login</td><td>Supabase</td></tr>
+      <tr><td>Supabase Auth</td><td>Email and password sign-in for staff, lecturers and class reps</td><td>Supabase</td></tr>
+      <tr><td>Student sign-in</td><td>Student number and password, checked by <code>security definer</code> functions in Postgres (migration 004), not Supabase Auth. The device keeps a token, never the password</td><td>Supabase</td></tr>
+      <tr><td>Supabase Storage</td><td>The <code>timetables</code> bucket: each campus's official timetable PDF, public to read, written by that campus's admins</td><td>Supabase</td></tr>
       <tr><td>Supabase Realtime</td><td>Tells open apps when timetable rows, notices or announcements change, so they reload</td><td>Supabase</td></tr>
       <tr><td>Edge Function <code>send-push</code></td><td>Sends Web Push to browsers: alerts on new notices and announcements, and class reminders each minute</td><td>Supabase (Deno)</td></tr>
     </tbody>
@@ -230,11 +232,15 @@ js/
   reminders.js push.js   reminder scheduling, change alerts, Web Push subscription
   cache.js store.js      offline copy of the campus timetable (IndexedDB)
   sync.js                outbox for changes made offline
-  lib/                   pure logic: search, reminder plan, notices, CSV, announcements (unit tested)
+  student-token.js       the student's sign-in token on this device
+  timetable-pdf.js       the official timetable PDF: upload, offline copy
+  lib/                   pure logic: search, reminder plan, notices, CSV, announcements,
+                         calendar file (unit tested)
   views/                 student, announcements, staff, admin tabs, lecturer, class rep
 vendor/                  pinned supabase-js, jsPDF, autotable, @capacitor/core
 supabase/migrations/     001 campuses + roles + RLS, 002 announcements + notices,
-                         003 class reps + late notices + course announcements + push
+                         003 class reps + late notices + course announcements + push,
+                         004 course notices + timetable PDF + student passwords
 supabase/functions/      send-push Edge Function, _shared/push-plan.js (unit tested)
 assets/  icons/          icon + splash sources (SVG) and rendered PNGs
 android/  ios/           native projects, committed
@@ -248,16 +254,18 @@ tests/unit  tests/ui  tests/db  tests/functions
   <div class="tbl"><table>
     <thead><tr><th>File</th><th>Job</th></tr></thead>
     <tbody>
-      <tr><td><code>js/main.js</code></td><td>Start-up: send queued offline changes, detect which migrations the database has, load the campus, connect realtime; reconnect when the device comes back online</td></tr>
+      <tr><td><code>js/main.js</code></td><td>Start-up: show the copy saved on the device straight away, then sync behind it (send queued offline changes, detect which migrations the database has, load the campus, connect realtime) and redraw once the student is idle; reconnect when the device comes back online</td></tr>
       <tr><td><code>js/db.js</code></td><td>Every Supabase read and write, campus scoping, staff roles, capability detection</td></tr>
       <tr><td><code>js/state.js</code></td><td>The one shared state object the views redraw from</td></tr>
       <tr><td><code>js/render.js</code>, <code>js/views/</code></td><td>The tabs: My Timetable, Announcements, Lecturer, Class rep, Staff (admin sub-tabs), plus sign-in and footer</td></tr>
       <tr><td><code>js/platform.js</code></td><td>The only browser-or-phone switch: notifications, saving PDFs and CSVs, back button, install button, service worker registration</td></tr>
       <tr><td><code>js/cache.js</code>, <code>js/store.js</code></td><td>The offline copy of the campus timetable in IndexedDB (localStorage if IndexedDB is blocked)</td></tr>
-      <tr><td><code>js/sync.js</code></td><td>The outbox for student changes made offline</td></tr>
+      <tr><td><code>js/sync.js</code></td><td>The outbox for student changes made offline, and saving a student's own record (with the device token since 004)</td></tr>
+      <tr><td><code>js/student-token.js</code></td><td>The student's sign-in token on this device</td></tr>
+      <tr><td><code>js/timetable-pdf.js</code></td><td>The official timetable PDF: where it is, upload and removal, the copy kept on the device</td></tr>
       <tr><td><code>js/reminders.js</code>, <code>js/push.js</code></td><td>Reminder scheduling on the phone, alerts while the app is open, and the browser's Web Push subscription</td></tr>
       <tr><td><code>js/pdf.js</code>, <code>js/ai-import.js</code></td><td>PDF timetables (personal and per course); reading a university PDF with an AI model</td></tr>
-      <tr><td><code>js/lib/</code></td><td>Search, reminder planning, notice wording and dates, CSV reading and writing, announcement visibility</td></tr>
+      <tr><td><code>js/lib/</code></td><td>Search, reminder planning, notice wording, dates and course filtering, CSV reading and writing, announcement visibility, the calendar (.ics) file</td></tr>
       <tr><td><code>supabase/migrations/</code></td><td>The schema and every access rule, run once each in the SQL editor</td></tr>
       <tr><td><code>supabase/functions/</code></td><td><code>send-push</code> and <code>_shared/push-plan.js</code>, which decides what to send to whom</td></tr>
       <tr><td><code>tests/</code></td><td><code>unit</code> (Node), <code>ui</code> (Chromium against an in-memory fake Supabase), <code>db</code> (throwaway Postgres in Docker), <code>functions</code> (Deno)</td></tr>
@@ -268,21 +276,26 @@ tests/unit  tests/ui  tests/db  tests/functions
 <section id="flows">
   <h2>How it works</h2>
   <h3>Opening the app</h3>
-  <p>The app first sends anything left in the offline outbox, then asks the database what it supports and loads the student's campus. If the server can't be reached it opens on the copy kept on the device and says it is offline.</p>
+  <p>When the device has a saved copy, the app shows it straight away with "syncing…" in the header and syncs behind it: it sends anything left in the offline outbox, asks the database what it supports and loads the student's campus. If anything changed, the page redraws once the student has stopped tapping, typing and scrolling, keeping the scroll position. If the server can't be reached the header says offline. Only a first open with nothing saved waits for the server.</p>
 <pre class="mermaid">
 sequenceDiagram
   participant App
   participant Dev as Device store
   participant DB as Supabase
+  App->>Dev: read the last campus copy and student record
+  alt a copy is saved
+    App->>App: show it at once, "syncing…"
+  end
   App->>DB: campuses, announcements, app_schema_version()
   alt server reachable
     App->>DB: send queued student changes (outbox)
+    App->>DB: student record (with the device token since 004)
     App->>DB: load faculties, courses, sessions, exams, notices for the campus
-    App->>Dev: save the campus copy and the student record
+    App->>Dev: save the campus copy, the student record, a new timetable PDF
     App->>DB: subscribe to realtime changes
+    App->>App: redraw if anything changed, once the student is idle
   else no connection
-    App->>Dev: read the last campus copy
-    App->>App: show it, marked offline
+    App->>App: keep the saved copy, marked offline
   end
 </pre>
   <h3>Working offline</h3>
@@ -291,6 +304,8 @@ sequenceDiagram
     <li>The whole campus timetable is on the device, so a student can browse courses and tick modules.</li>
     <li>A save that can't reach the server goes into the outbox and the header shows how many changes are waiting. A save the server refuses still shows an error.</li>
     <li>When the browser reports it is back online (or the phone app resumes), the outbox is sent first, then everything reloads, and the student sees "You're back online".</li>
+    <li>After 004, a student already signed in on the device opens their timetable offline as before. Signing in again after signing out needs a connection, because the password is checked on the server.</li>
+    <li>The official timetable PDF is downloaded once per upload and opens from the device offline.</li>
   </ul>
   <h3>A class running late</h3>
 <pre class="mermaid">
@@ -310,15 +325,15 @@ sequenceDiagram
   DB-->>P: realtime change while the app is open
   P->>P: notify now, reschedule the reminder for the delayed start
 </pre>
-  <p>Both the page and the push use the same notification tag (<code>notice-&lt;id&gt;</code>), so a student who gets both sees one notification.</p>
+  <p>Both the page and the push use the same notification tag (<code>notice-&lt;id&gt;</code>), so a student who gets both sees one notification. A notice for one course (004) reaches only students who ticked that module's sessions on that course, in the page, the phone reminders and <code>send-push</code> alike.</p>
   <h3>Class reminders</h3>
   <ul>
-    <li><b>Phone app:</b> one repeating local notification per session at the chosen lead time (10 minutes by default), rescheduled whenever modules, notices or settings change. No server is involved.</li>
+    <li><b>Phone app:</b> one repeating local notification per session at the chosen lead time (any whole number of minutes from 1 to 120, 10 by default), rescheduled whenever modules, notices or settings change. No server is involved.</li>
     <li><b>Browser with push on:</b> <code>pg_cron</code> calls <code>send-push</code> every minute; it sends each student the sessions starting their lead time from now, skipping cancelled classes and moving late ones.</li>
     <li><b>Browser without push:</b> reminders fire only while the page is open.</li>
   </ul>
   <h3>Uploading the official timetable</h3>
-  <p>An admin uploads a CSV (from Excel or Google Sheets) under Class timetable or Exam timetable. <code>js/lib/csv.js</code> matches columns by name, tidies days, times and dates, and lists bad lines; nothing is written until the admin confirms. Rows already on the timetable are skipped, so importing twice adds nothing. A PDF goes through AI Import instead, where the admin reviews every proposed row.</p>
+  <p>An admin uploads a CSV (from Excel or Google Sheets) under Class timetable or Exam timetable. <code>js/lib/csv.js</code> matches columns by name, tidies days, times and dates, and lists bad lines; nothing is written until the admin confirms. Rows already on the timetable are skipped, so importing twice adds nothing. A PDF goes through AI Import instead, where the admin reviews every proposed row. The PDF itself can also be uploaded under Settings, so students have the university's own version at the bottom of My Timetable.</p>
 </section>
 
 <section id="data">
@@ -338,12 +353,17 @@ erDiagram
   campuses ||--o{ class_notices : posts
   campuses ||--o{ push_subscriptions : "browsers on"
   programmes ||--o{ announcements : "course posts"
+  programmes ||--o{ class_notices : "course notices"
+  students ||--o| student_credentials : "password"
+  students ||--o{ student_sessions : "signed-in devices"
   campuses { text id PK  text name  int sort }
-  campus_settings { text campus_id PK  text semester  int semester_version  timestamptz updated_at }
+  campus_settings { text campus_id PK  text semester  int semester_version  timestamptz updated_at  text timetable_pdf_path  text timetable_pdf_name }
   staff { uuid user_id PK  text role  text campus_id  text display_name  text email }
   lecturer_modules { uuid user_id  text campus_id  text code }
   announcements { uuid id PK  text campus_id  uuid programme_id  int year  text title  text body  bool pinned  timestamptz expires_at }
-  class_notices { uuid id PK  text campus_id  text code  text kind  date notice_date  text start_time  int delay_minutes  text venue  text details }
+  class_notices { uuid id PK  text campus_id  text code  uuid programme_id  text kind  date notice_date  text start_time  int delay_minutes  text venue  text details }
+  student_credentials { text student_id PK  text password_hash  int failed_attempts  timestamptz locked_until }
+  student_sessions { text token_hash PK  text student_id  timestamptz last_used_at }
   push_subscriptions { text endpoint PK  text campus_id  uuid_array module_ids  text_array codes  int minutes_before  bool reminders }
   modules { uuid id PK  text campus_id  text code  text day  text start_time  text end_time  text venue  uuid programme_id }
 </pre>
@@ -361,6 +381,10 @@ erDiagram
       <tr><td><code>class_notices</code> (003)</td><td>Adds kind <code>late</code> and <code>delay_minutes</code> (1–240)</td><td>"Running 15 min late"</td></tr>
       <tr><td><code>announcements</code> (003)</td><td>Adds <code>programme_id</code> and <code>year</code></td><td>Class reps announce to their own course and year</td></tr>
       <tr><td><code>push_subscriptions</code> (003)</td><td>New: one row per browser with reminders on. Written only by <code>save_push_subscription</code> / <code>delete_push_subscription</code>, unreadable through the API</td><td>Web Push without a student login</td></tr>
+      <tr><td><code>class_notices</code> (004)</td><td>Adds an optional <code>programme_id</code>; the course must have a session of that module on that campus</td><td>One module, several courses, different venues: a test for one course only</td></tr>
+      <tr><td><code>campus_settings</code> (004)</td><td>Adds <code>timetable_pdf_path</code>, <code>_name</code>, <code>_at</code>; files in the public <code>timetables</code> bucket under <code>&lt;campus&gt;/</code></td><td>The official timetable PDF at the bottom of My Timetable</td></tr>
+      <tr><td><code>student_credentials</code>, <code>student_sessions</code> (004)</td><td>New, unreadable through the API. bcrypt password hashes, failed-attempt lock, SHA-256 hashes of device tokens</td><td>Student passwords</td></tr>
+      <tr><td><code>students</code> (004)</td><td>Readable and writable only by campus admins; students go through <code>student_sign_in</code>, <code>student_get</code>, <code>student_save</code>, <code>student_sign_out</code></td><td>Nobody can read or change someone else's record by student number</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -369,7 +393,7 @@ erDiagram
   <h2>Roles &amp; access</h2>
   <p>Postgres row-level security enforces the rules, not the UI. Three <code>security definer</code> helpers, <code>is_super_admin()</code>, <code>is_campus_admin(campus)</code> and <code>teaches(campus, code)</code>, keep the policies short. The migration drops every existing policy on the affected tables and recreates them, because the original policy names were never committed to the repo.</p>
   <div class="tbl"><table>
-    <thead><tr><th>Action</th><th>Student (no login)</th><th>Lecturer</th><th>Class rep</th><th>Campus admin</th><th>Super admin</th></tr></thead>
+    <thead><tr><th>Action</th><th>Student</th><th>Lecturer</th><th>Class rep</th><th>Campus admin</th><th>Super admin</th></tr></thead>
     <tbody>
       <tr><td>Read timetable, exams, announcements</td><td><span class="chip yes">all</span></td><td><span class="chip yes">all</span></td><td><span class="chip yes">all</span></td><td><span class="chip yes">all</span></td><td><span class="chip yes">all</span></td></tr>
       <tr><td>Upload / bulk import / delete timetable</td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip part">own campus</span></td><td><span class="chip yes">any</span></td></tr>
@@ -377,7 +401,9 @@ erDiagram
       <tr><td>Post late / test / cancellation notice</td><td><span class="chip no">no</span></td><td><span class="chip part">own modules</span></td><td><span class="chip part">own modules</span></td><td><span class="chip part">own campus</span></td><td><span class="chip yes">any</span></td></tr>
       <tr><td>Post announcement</td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip part">own modules' courses</span></td><td><span class="chip part">own campus</span></td><td><span class="chip yes">any, incl. all-campus</span></td></tr>
       <tr><td>Grant lecturer / class rep role</td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip part">own campus</span></td><td><span class="chip yes">any role</span></td></tr>
-      <tr><td>Register / edit own module list</td><td><span class="chip part">by student no.</span></td><td>n/a</td><td>n/a</td><td><span class="chip part">override, own campus</span></td><td><span class="chip yes">any</span></td></tr>
+      <tr><td>Register / edit own module list</td><td><span class="chip part">own, with password (004); by student no. before</span></td><td>n/a</td><td>n/a</td><td><span class="chip part">override, own campus</span></td><td><span class="chip yes">any</span></td></tr>
+      <tr><td>Reset a student's password</td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip part">own campus</span></td><td><span class="chip yes">any</span></td></tr>
+      <tr><td>Upload the official timetable PDF</td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip no">no</span></td><td><span class="chip part">own campus</span></td><td><span class="chip yes">any</span></td></tr>
       <tr><td>Save / remove a push subscription</td><td><span class="chip part">by endpoint, via RPC</span></td><td>n/a</td><td>n/a</td><td><span class="chip no">can't read them</span></td><td><span class="chip no">can't read them</span></td></tr>
     </tbody>
   </table></div>
@@ -385,7 +411,7 @@ erDiagram
   <ol>
     <li>The person opens <b>Staff sign in → Create account</b> in the app, which runs a Supabase Auth sign-up.</li>
     <li>Their campus admin enters the email under <b>Admin → Staff</b> and picks a role. The RPC <code>grant_staff_role(email, role, campus)</code> resolves the email to a user id on the server and checks that the caller is allowed to grant that role.</li>
-    <li>For a lecturer or class rep, the admin then assigns module codes. Lecturers work under the <b>Lecturer</b> tab and reps under <b>Class rep</b>; signing in on any tab moves to the right one.</li>
+    <li>For a lecturer or class rep, the admin then assigns module codes. Everyone signs in under <b>Staff</b>; lecturers are moved to the <b>Lecturer</b> tab and reps to <b>Class rep</b>. Those two tabs only appear for those roles, so students don't see them.</li>
   </ol>
   <p>When the migration runs, every account in Authentication → Users becomes a <b>super admin</b>. Today that should only be the existing admin login, so check that list before running it.</p>
 </section>
@@ -396,6 +422,7 @@ erDiagram
   <ul>
     <li>At startup <code>db.js</code> probes for the <code>campuses</code> table. If it's missing, the app runs in <b>single-campus mode</b>: legacy <code>settings</code> row 1, any signed-in user is admin (as today), and no lecturer or announcement tabs. Admin shows a banner pointing to the migration file.</li>
     <li>Migration 003 adds <code>app_schema_version()</code>. While it's missing, the Class rep tab, "running late" notices, course announcements and push stay hidden; everything else works.</li>
+    <li>Migration 004 raises <code>app_schema_version()</code> to 4, which turns on student passwords, notices for one course and the official timetable PDF. Before that the app keeps the student-number sign-in. After it, every student chooses a password at their next open, and app builds older than this change can no longer read student records.</li>
     <li>Migrations are idempotent (<code>if not exists</code>, policies dropped before they're recreated), so running one twice is harmless.</li>
     <li>Someone with Supabase dashboard access runs each file once in the SQL editor. The app can't do it, because it only holds the public anon key.</li>
   </ul>
@@ -419,7 +446,7 @@ sequenceDiagram
   <h2>Native features</h2>
   <h3>Class reminders that fire when the app is closed</h3>
   <ul>
-    <li><code>@capacitor/local-notifications</code> sets up one weekly repeating notification per class session, using <code>schedule.on {weekday, hour, minute}</code> and <code>allowWhileIdle</code>, at the student's chosen lead time (5 to 60 minutes).</li>
+    <li><code>@capacitor/local-notifications</code> sets up one weekly repeating notification per class session, using <code>schedule.on {weekday, hour, minute}</code> and <code>allowWhileIdle</code>, at the student's chosen lead time (any whole number of minutes from 1 to 120, the limit the push table accepts).</li>
     <li>Tests and one-off notices get a single notification the evening before at 18:00, plus one at the lead time.</li>
     <li>Reminders are rescheduled whenever the module list, lead time, campus, notices or semester changes. Everything pending is cancelled first, so nothing piles up.</li>
     <li>iOS keeps at most 64 pending notifications, so the scheduler caps at 60 and fills them in order of soonest first.</li>
@@ -437,7 +464,7 @@ sequenceDiagram
   <h3>PDF export</h3>
   <p>On native, the jsPDF output is written to the cache directory with <code>@capacitor/filesystem</code> and handed to the share sheet with <code>@capacitor/share</code>, so it can go to WhatsApp, Drive or Files. On the web it downloads as it does now.</p>
   <h3>Offline open</h3>
-  <p>After each successful load, the campus timetable, notices and announcements are kept on the device (see <b>Web app</b> above; the phone app uses the same copy). With no connection, the app opens on that copy and shows an "offline, last updated …" note.</p>
+  <p>After each successful load, the campus timetable, notices and announcements are kept on the device (see <b>Web app</b> above; the phone app uses the same copy). Every open starts on that copy and syncs behind it; with no connection it stays on the copy and shows an "offline, last updated …" note.</p>
   <h3>Shell polish</h3>
   <p>Android's back button returns to My Timetable before leaving the app. The status bar takes the brand colour, the splash screen hides after the first render, and icons and splash images come from <code>@capacitor/assets</code>.</p>
 </section>
@@ -449,7 +476,7 @@ sequenceDiagram
   <h3>Multi-campus</h3>
   <p>Students pick a campus on the sign-in screen, and it's saved to their record. Admins see only their own campus, and the class, exam and AI import tabs write <code>campus_id</code> automatically. A super admin gets a campus switcher. Faculties and courses are per campus.</p>
   <h3>Lecturers tab</h3>
-  <p>A lecturer signs in and sees only their assigned module codes. For each code they can move a session for good (day, time, venue), or post a one-off notice: test, cancelled, moved, extra class or note. Students see these notices next to the class in their timetable and in a "Coming up" list.</p>
+  <p>A lecturer signs in under Staff and sees only their assigned module codes. For each code they can move a session for good (day, time, venue), or post a one-off notice: test, cancelled, moved, extra class or note. After 004 a notice can be for one of the courses the module runs on, with that course's class time and venue filled in, or for all of them. Students see these notices next to the class in their timetable and in a "Coming up" list, with the course named on course notices.</p>
   <h3>Class rep tab</h3>
   <p>A class rep is assigned module codes like a lecturer. They get the same notice form and session editor for those codes, plus a form to announce to the courses those codes are taught on, optionally to one year. Students see an announcement for a course only if they take a module on it (in that year).</p>
   <h3>Running late</h3>
@@ -460,6 +487,15 @@ sequenceDiagram
   <p>Students get an Announcements tab with campus and all-campus posts, pinned first, and expired posts hidden. Admins can create, pin, set an expiry and delete.</p>
   <h3>Contact footer</h3>
   <p>A footer gives the maintainer's contact email for queries, plus LinkedIn and Facebook links. The links live in <code>js/config.js</code>, and each one is hidden until its URL is filled in.</p>
+  <h3>From Lwandile's feedback, 17 Oct 2026</h3>
+  <ul>
+    <li><b>Students list shows the course.</b> Students never record a course, so Staff → Students said "Unassigned" for everyone. The Course column now shows the course most of the student's ticked modules come from, with any others in a "+N" tooltip, or "No modules yet".</li>
+    <li><b>Lecturer and Class rep tabs</b> appear only for those roles, after signing in under Staff, and go away on sign out.</li>
+    <li><b>Reminder time</b> is a number box (1 to 120 minutes) with 5, 10, 15, 30 and 60 as shortcuts.</li>
+    <li><b>Add to calendar</b> downloads an <code>.ics</code> file: each class repeats weekly until the day before the student's first exam (14 weeks when no exam is loaded, since there is no semester end date), and each exam is a one-off event, in Eswatini time.</li>
+    <li><b>Opens without waiting</b> for the server, as described under <b>Opening the app</b>.</li>
+    <li><b>Course on class notices</b>, <b>official timetable PDF</b> and <b>student passwords</b>, described above and under <b>Data model</b>.</li>
+  </ul>
   <h3>Smaller fixes found during review</h3>
   <ul>
     <li>Realtime reloads are debounced so a bulk import causes a single reload.</li>
@@ -503,18 +539,20 @@ sequenceDiagram
       <tr><td><code>001_campuses_and_roles.sql</code></td><td><span class="chip yes">run</span></td><td>Campuses, staff roles, lecturers</td></tr>
       <tr><td><code>002_announcements_and_notices.sql</code></td><td><span class="chip yes">run</span></td><td>Announcements, class notices</td></tr>
       <tr><td><code>003_class_reps_late_notices_push.sql</code></td><td><span class="chip part">not run</span></td><td>Class reps, "running late", course announcements, push subscriptions</td></tr>
+      <tr><td><code>004_notice_courses_timetable_pdf_student_passwords.sql</code></td><td><span class="chip part">not run</span></td><td>Notices for one course, the official timetable PDF, student passwords</td></tr>
     </tbody>
   </table></div>
   <h3>Turning on push for the website</h3>
-  <p>Needs migration 003. Make a VAPID key pair, put the public key in <code>js/config.js</code>, set the secrets, deploy <code>send-push</code> with <code>--no-verify-jwt</code>, and run its <code>setup.sql</code>. The full steps, and how to turn it off again, are in <code>supabase/functions/send-push/README.md</code>. <b>Edge Functions → send-push → Logs</b> shows each call and how many messages were sent.</p>
+  <p>Needs migration 003. Make a VAPID key pair, put the public key in <code>js/config.js</code>, set the secrets, deploy <code>send-push</code> with <code>--no-verify-jwt</code>, and run its <code>setup.sql</code>. The full steps, and how to turn it off again, are in <code>supabase/functions/send-push/README.md</code>. If it was deployed before the course-notice change, deploy it again so a notice for one course only reaches that course. <b>Edge Functions → send-push → Logs</b> shows each call and how many messages were sent.</p>
   <h3>Each semester</h3>
   <ul>
     <li>Upload the new class and exam timetables as CSV (Staff → Class timetable / Exam timetable). <b>Download CSV template</b> gives the columns.</li>
     <li>Start the new semester under Staff → Settings. Students' module lists are archived and cleared the next time they open the app.</li>
     <li>Settings → <b>Clean up duplicate entries</b> shows any rows imported twice and removes the extras.</li>
+    <li>Upload the university's timetable PDF under Settings → <b>Official timetable PDF</b>; the previous file is deleted.</li>
   </ul>
   <h3>Staff accounts</h3>
-  <p>The person creates an account under any sign-in tab (<b>Create a staff account</b>). A campus admin adds their email under Staff → Staff &amp; lecturers, picks Lecturer or Class rep, and assigns module codes. Only a super admin can create admins.</p>
+  <p>The person creates an account under <b>Staff</b> (<b>Create a staff account</b>). A campus admin adds their email under Staff → Staff &amp; lecturers, picks Lecturer or Class rep, and assigns module codes. Only a super admin can create admins.</p>
   <h3>Local development</h3>
 <pre class="block">npm ci
 npm run serve            # http://localhost:5173, against the live database
@@ -523,7 +561,7 @@ npm run test:ui          # browser tests on a fake database (UI_CPU_SLOWDOWN=6 t
 npm run test:db          # migrations + access rules, needs Docker
 npm run test:functions   # send-push under Deno
 npm run sync             # copy into the Android and iOS projects</pre>
-  <p>The local server talks to the live database, so student numbers entered there create real records. The UI tests never touch it.</p>
+  <p>The local server talks to the live database, so student numbers entered there create real records. The UI tests never touch it. A student's forgotten password is reset under Staff → Students.</p>
 </section>
 
 <section id="plan">
@@ -544,20 +582,23 @@ npm run sync             # copy into the Android and iOS projects</pre>
     <li><b>Phase 2: offline web app</b><span>Service worker and install button, campus timetable in IndexedDB, outbox that syncs when back online.</span></li>
     <li><b>Phase 2: alerts</b><span>Migration 003, running-late notices, instant change alerts, Web Push subscription, send-push Edge Function.</span></li>
     <li><b>Phase 2: roles and timetable files</b><span>Class rep role and tab, Lecturer tab, course announcements, CSV upload/template/export, course PDF and CSV download.</span></li>
+    <li><b>Lwandile's feedback (Oct 2026)</b><span>Course in the Students list, staff-only role tabs, any reminder time, calendar export, open on the saved copy, migration 004: course notices, timetable PDF, student passwords.</span></li>
   </ol>
 </section>
 
 <section id="risks">
   <h2>Risks &amp; open items</h2>
   <div class="callout crit">
-    <p><b>Student records are publicly readable and writable.</b> Students sign in with a student number and no password, so anyone with the anon key can read or change any student's record. That's tolerable for module lists, but app-store privacy reviews will ask about it. A fix means real student sign-in, for example a magic link to the university email. It's outside this plan.</p>
+    <p><b>Student records stay publicly readable and writable until migration 004 is run.</b> Before it, students sign in with a student number and no password, so anyone with the anon key can read or change any student's record. 004 closes the students table and adds passwords. Until each existing student sets one, whoever first sets a password on a number claims it, just as anyone could change it before.</p>
   </div>
   <div class="tbl"><table>
     <thead><tr><th>Item</th><th>Needed from</th></tr></thead>
     <tbody>
-      <tr><td>Run <code>supabase/migrations/*.sql</code> (001, 002, 003) in the Supabase SQL editor. Check Authentication → Users first, because every account there becomes super admin.</td><td class="owner">Supabase project owner</td></tr>
+      <tr><td>Run <code>supabase/migrations/*.sql</code> (003 and 004 remain) in the Supabase SQL editor. Check Authentication → Users first, because every account there becomes super admin.</td><td class="owner">Supabase project owner</td></tr>
       <tr><td>Turn on Web Push: VAPID keys, deploy <code>send-push</code>, run its <code>setup.sql</code> (<code>supabase/functions/send-push/README.md</code>). Until then browser reminders work only with the page open.</td><td class="owner">Supabase project owner</td></tr>
       <tr><td>Push subscriptions are keyed by endpoint with no student login, like student records. Anyone who learns an endpoint URL could change which modules it follows; endpoints are long random URLs only that browser knows.</td><td class="owner">Accepted for now</td></tr>
+      <tr><td>On a weak connection the service worker still waits up to 4 s for each app file before using its copy, so opening the website can lag even though the timetable no longer waits for the server. Serving the copy first and updating it in the background would fix it, at the cost of a deploy reaching students one visit later.</td><td class="owner">Open: decide whether to change</td></tr>
+      <tr><td>Student passwords are only as strong as students make them (6 characters minimum). Wrong guesses lock one number for 15 minutes, but someone trying one common password across many numbers isn't slowed.</td><td class="owner">Accepted for now</td></tr>
       <tr><td>LinkedIn and Facebook URLs for the footer. The contact email is already known.</td><td class="owner">Lwandile</td></tr>
       <tr><td>Campus admin and lecturer accounts for Luyengo and Mbabane</td><td class="owner">Super admin</td></tr>
       <tr><td>Google Play and Apple developer accounts, signing keys</td><td class="owner">Repo owner</td></tr>
