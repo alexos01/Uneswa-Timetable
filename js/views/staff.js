@@ -8,9 +8,9 @@ import { renderLecturer } from './lecturer.js';
 import { renderRep } from './rep.js';
 
 /* Staff sign-in and role routing
-   Admins work under Staff, lecturers under Lecturer and class reps under Class rep.
-   Any of the three tabs can be used to sign in; afterwards the app moves to the
-   tab for the account's role. */
+   Everyone signs in under Staff; afterwards the app moves to the tab for the
+   account's role. Admins work under Staff, lecturers under Lecturer and class reps
+   under Class rep, and those two tabs are only shown to them. */
 const TAB_FOR = { lecturer:'lecturer', class_rep:'rep', campus_admin:'staff', super_admin:'staff' };
 const TAB_LABEL = { lecturer:'Lecturer', rep:'Class rep', staff:'Staff' };
 
@@ -21,13 +21,9 @@ export function renderStaff(){
   return renderNoRole();
 }
 
-/** The Lecturer and Class rep tabs. */
+/** The Lecturer and Class rep tabs, shown only to a signed-in lecturer or class rep. */
 export function renderRoleTab(role){
-  if(!state.session) return renderSignIn(role==='lecturer' ? 'Lecturer sign in' : 'Class rep sign in');
-  if(role==='lecturer' && isLecturer()) return renderLecturer();
-  if(role==='class_rep' && isClassRep()) return renderRep();
-  if(!state.staff) return renderNoRole();
-  return renderWrongTab();
+  return role==='lecturer' ? renderLecturer() : renderRep();
 }
 
 async function afterSignIn(session){

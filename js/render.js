@@ -23,8 +23,9 @@ const SUPABASE_ANON_KEY = "YOUR-ANON-PUBLIC-KEY";</pre>
 function tabList(){
   const tabs = [['student','My Timetable']];
   if(state.caps.notices) tabs.push(['announcements', 'Announcements']);
-  if(state.caps.campuses) tabs.push(['lecturer', 'Lecturer']);
-  if(state.caps.v3) tabs.push(['rep', 'Class rep']);
+  // Lecturers and class reps sign in under Staff; their tab appears once they have.
+  if(state.caps.campuses && isLecturer()) tabs.push(['lecturer', 'Lecturer']);
+  if(state.caps.v3 && isClassRep()) tabs.push(['rep', 'Class rep']);
   tabs.push(['staff', state.caps.campuses ? 'Staff' : 'Admin']);
   return tabs;
 }
@@ -69,10 +70,11 @@ export function render(){
   const main = document.getElementById('main');
   main.innerHTML = '';
   if(!sb){ main.appendChild(renderNoConfig()); return; }
+  if(!tabList().some(([id])=>id===state.tab)) state.tab = ['lecturer','rep'].includes(state.tab) ? 'staff' : 'student'; // e.g. after signing out
   renderTabs();
   if(state.tab==='announcements' && state.caps.notices) main.appendChild(renderAnnouncements());
-  else if(state.tab==='lecturer' && state.caps.campuses) main.appendChild(renderRoleTab('lecturer'));
-  else if(state.tab==='rep' && state.caps.v3) main.appendChild(renderRoleTab('class_rep'));
+  else if(state.tab==='lecturer') main.appendChild(renderRoleTab('lecturer'));
+  else if(state.tab==='rep') main.appendChild(renderRoleTab('class_rep'));
   else if(state.tab==='staff') main.appendChild(renderStaff());
   else main.appendChild(renderStudent());
   renderFooter();

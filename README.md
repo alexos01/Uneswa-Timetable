@@ -101,7 +101,7 @@ The phone apps schedule reminders on the device. In a browser, reminders and lat
 | Campus admin | Everything on their own campus: timetables, CSV and AI imports, students, semester reset, announcements, lecturers, class reps |
 | Super admin | Every campus, all-campus announcements, creating admins |
 
-To add staff, the person first opens **Staff → Create a staff account**. An admin then adds their email under **Staff → Staff & lecturers** and, for a lecturer or class rep, assigns module codes. Lecturers and class reps work under their own **Lecturer** and **Class rep** tabs.
+To add staff, the person first opens **Staff → Create a staff account**. An admin then adds their email under **Staff → Staff & lecturers** and, for a lecturer or class rep, assigns module codes. Lecturers and class reps sign in under **Staff**, which then opens their own **Lecturer** or **Class rep** tab. Those tabs are hidden from everyone else.
 
 ### Uploading the official timetable
 

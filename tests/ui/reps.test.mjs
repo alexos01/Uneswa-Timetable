@@ -7,8 +7,8 @@ let server, browser;
 before(async ()=>{ server = await startServer(); browser = await launch(); });
 after(async ()=>{ await browser?.close(); await server?.close(); });
 
-async function staffSignIn(page, email, password='secret', tab='#tab-staff'){
-  await page.click(tab);
+async function staffSignIn(page, email, password='secret'){
+  await page.click('#tab-staff');
   await page.fill('#adminEmail', email);
   await page.fill('#adminPass', password);
   await page.click('#adminGoBtn');
@@ -53,17 +53,27 @@ function repSeed(){
   return s;
 }
 
-test('top tabs: Lecturer and Class rep sit next to Staff', async ()=>{
+test('the Lecturer and Class rep tabs appear only for those roles, and go on sign out', async ()=>{
   const { page, errors } = await openApp(browser, server.url, repSeed());
-  assert.deepEqual(await page.locator('#tabs button').allTextContents(), ['My Timetable', 'Announcements 2', 'Lecturer', 'Class rep', 'Staff']);
-  await page.click('#tab-rep');
-  assert.match(await page.textContent('#main'), /Class rep sign in/);
+  const tabs = ()=>page.locator('#tabs button').allTextContents();
+  assert.deepEqual(await tabs(), ['My Timetable', 'Announcements 2', 'Staff'], 'students see no staff role tabs');
+  await staffSignIn(page, 'rep@test.local');
+  await page.waitForSelector('#caCourse');
+  assert.deepEqual(await tabs(), ['My Timetable', 'Announcements 2', 'Class rep', 'Staff']);
+  assert.equal(await page.getAttribute('#tab-rep', 'class'), 'active', 'lands on the Class rep tab');
+  await page.click('#signOutBtn');
+  await page.waitForSelector('#adminEmail');
+  assert.deepEqual(await tabs(), ['My Timetable', 'Announcements 2', 'Staff']);
+  assert.equal(await page.getAttribute('#tab-staff', 'class'), 'active');
+  await staffSignIn(page, 'lect@test.local');
+  await page.waitForSelector('.sessedit');
+  assert.deepEqual(await tabs(), ['My Timetable', 'Announcements 2', 'Lecturer', 'Staff']);
   assert.deepEqual(errors, []);
 });
 
 test('class rep signs in on their tab, posts a late notice and a class announcement', async ()=>{
   const { page, errors } = await openApp(browser, server.url, repSeed(), { fixedTime:'2026-10-20T06:30:00' });
-  await staffSignIn(page, 'rep@test.local', 'secret', '#tab-rep');
+  await staffSignIn(page, 'rep@test.local');
   await page.waitForSelector('#caCourse');
   assert.match(await page.textContent('.staffbar'), /Class rep · Kwaluseni/);
   assert.equal(await page.inputValue('#ntCode'), 'CSC211');
