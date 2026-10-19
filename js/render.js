@@ -55,6 +55,7 @@ function semesterLine(){
   parts.push(state.meta.semester || 'Semester not set');
   if(state.meta.updated_at) parts.push('updated ' + new Date(state.meta.updated_at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }));
   if(state.offline) parts.push('offline');
+  else if(state.syncing) parts.push('syncing…');
   if(state.pendingSync) parts.push(`${state.pendingSync} change${state.pendingSync>1?'s':''} waiting to sync`);
   return parts.join(' · ');
 }

@@ -92,3 +92,60 @@ test('a student can sign in for the first time with no connection', async ()=>{
   assert.match(await page.textContent('#semesterLabel'), /waiting to sync/);
   assert.deepEqual(errors.filter(e=>!/Failed to fetch|fetchAllRows/.test(e)), []);
 });
+
+test('on a slow connection the app opens on the saved copy at once and syncs behind it', async ()=>{
+  const { page, context, errors } = await openApp(browser, server.url, legacySeed());
+  await signIn(page, '202100780', 'Slow Student');
+  await page.selectOption('#facSel', ids.FAC_SCI);
+  await page.selectOption('#progSel', ids.BSC_CS);
+  await page.locator('#modList .modrow', { hasText:'CSC211' }).locator('input').check();
+  await page.waitForSelector('table.grid .cell-mod');
+  await page.waitForFunction(()=>new Promise(r=>{ const q = indexedDB.open('uneswa-timetable'); q.onsuccess = ()=>{
+    const g = q.result.transaction('kv').objectStore('kv').get('student:202100780'); g.onsuccess = ()=>r(!!g.result?.module_ids?.length); }; }));
+
+  // Every request now takes 3 s, and a lecturer has moved CSC211 meanwhile.
+  await context.addInitScript(()=>{
+    window.__FAKE_DB__.latencyMs = 3000;
+    window.__FAKE_DB__.tables.modules.find(m=>m.code==='CSC211').venue = 'NEW.ROOM';
+  });
+  const started = Date.now();
+  await page.reload();
+  await page.waitForSelector('table.grid .cell-mod');
+  assert.ok(Date.now() - started < 2500, `timetable shown before the server answered (${Date.now() - started} ms)`);
+  assert.match(await page.textContent('#semesterLabel'), /syncing/);
+  assert.match(await page.textContent('table.grid'), /G\.005/, 'the saved copy');
+
+  await page.waitForFunction(()=>!/syncing/.test(document.querySelector('#semesterLabel').textContent), null, { timeout:30000 });
+  await page.waitForFunction(()=>document.querySelector('table.grid').textContent.includes('NEW.ROOM'), null, { timeout:10000 });
+  assert.doesNotMatch(await page.textContent('#semesterLabel'), /offline/);
+  assert.deepEqual(errors, []);
+});
+
+test('a sync that finishes while the student is typing waits until they stop', async ()=>{
+  const { page, context, errors } = await openApp(browser, server.url, legacySeed());
+  await signIn(page, '202100781', 'Typing Student');
+  await page.selectOption('#facSel', ids.FAC_SCI);
+  await page.selectOption('#progSel', ids.BSC_CS);
+  await page.locator('#modList .modrow', { hasText:'CSC211' }).locator('input').check();
+  await page.waitForSelector('table.grid .cell-mod');
+  await page.waitForFunction(()=>new Promise(r=>{ const q = indexedDB.open('uneswa-timetable'); q.onsuccess = ()=>{
+    const g = q.result.transaction('kv').objectStore('kv').get('student:202100781'); g.onsuccess = ()=>r(!!g.result?.module_ids?.length); }; }));
+
+  await context.addInitScript(()=>{
+    window.__FAKE_DB__.latencyMs = 1500;
+    window.__FAKE_DB__.tables.modules.find(m=>m.code==='CSC211').venue = 'NEW.ROOM';
+  });
+  await page.reload();
+  await page.waitForSelector('#modSearch');
+  await page.click('#modSearch');
+  await page.keyboard.type('MAT', { delay:50 });
+  await page.waitForFunction(()=>!/syncing/.test(document.querySelector('#semesterLabel').textContent), null, { timeout:30000 });
+  await page.waitForTimeout(800);
+  assert.equal(await page.inputValue('#modSearch'), 'MAT', 'what they typed is still there');
+  assert.equal(await page.evaluate(()=>document.activeElement.id), 'modSearch', 'still in the field');
+  assert.match(await page.textContent('table.grid'), /G\.005/, 'not redrawn yet');
+
+  await page.click('h1');
+  await page.waitForFunction(()=>document.querySelector('table.grid').textContent.includes('NEW.ROOM'), null, { timeout:10000 });
+  assert.deepEqual(errors, []);
+});

@@ -10,12 +10,19 @@ import { toast } from './util.js';
 
 function readLocal(key){ try{ return localStorage.getItem(key); }catch{ return null; } }
 
-/** Loads everything from Supabase, sending any changes made offline first. Throws when the server can't be reached. */
-async function connect(studentId){
+/** Loads everything from Supabase, sending any changes made offline first. Throws when the server can't be reached.
+    With `behind` set, the page is already showing the saved copy and the student may have
+    acted meanwhile: their record is only replaced if they are still on it and haven't changed it since. */
+async function connect(studentId, { behind = false } = {}){
   await detectCapabilities();
   if(state.caps.campuses && !state.campuses.some(c=>c.id===state.campusId)) state.campusId = DEFAULT_CAMPUS;
   await flushOutbox(sb);
-  const student = studentId ? await fetchStudent(studentId) : null;
+  let student = studentId ? await fetchStudent(studentId) : null;
+  if(behind){
+    const local = state.currentStudent;
+    if(state.currentStudentId !== studentId) student = null;
+    else if(student && local && (local.updated_at||'') > (student.updated_at||'')) student = local;
+  }
   if(student && state.caps.campuses && student.campus_id) state.campusId = student.campus_id;
   await loadAll();
   if(student){
@@ -28,6 +35,37 @@ async function connect(studentId){
   state.offline = false;
   subscribeRealtime();
 }
+
+/** What the page shows, to tell whether a sync changed anything. */
+function shownData(){
+  const { caps, campusId, campuses, meta, faculties, programmes, modules, exams, notices, announcements, currentStudent, staff, resetNotice } = state;
+  return JSON.stringify({ caps, campusId, campuses, meta, faculties, programmes, modules, exams, notices, announcements, currentStudent, staff, resetNotice });
+}
+
+// Last time the student touched, typed or scrolled.
+let lastInput = 0;
+for(const t of ['pointerdown','keydown','input','focusin','scroll','wheel','touchstart']){
+  window.addEventListener(t, ()=>{ lastInput = Date.now(); }, { capture:true, passive:true });
+}
+const IDLE_MS = 1500;
+const TYPING = /^(textarea|select)$|^input:(text|search|number|email|password|tel|url|date|time)$/;
+function typingInMain(){
+  const el = document.activeElement;
+  if(!el || !el.closest('#main')) return false;
+  return TYPING.test(el.tagName.toLowerCase() + (el.tagName === 'INPUT' ? ':' + (el.type || 'text') : ''));
+}
+
+/** Redraws after a background sync without pulling the page from under the student:
+    waits until they have stopped tapping, typing and scrolling and are not in a text
+    field, then keeps the scroll position. A tap in progress is never lost to a redraw. */
+function redrawWhenIdle(){
+  if(Date.now() - lastInput < IDLE_MS || typingInMain()){ setTimeout(redrawWhenIdle, 500); return; }
+  const y = window.scrollY;
+  render();
+  window.scrollTo(0, y);
+}
+
+const savedOn = at=>new Date(at).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
 
 /* Init */
 (async function init(){
@@ -42,22 +80,44 @@ async function connect(studentId){
   if(savedNotif){ try{ state.notif = JSON.parse(savedNotif); }catch{} }
   state.campusId = readLocal('uneswa_campus') || DEFAULT_CAMPUS;
   const lastId = readLocal('uneswa_last_student');
+  const show = ()=>{
+    render();
+    hideSplash();
+    startReminders();
+    document.dispatchEvent(new CustomEvent('timetable:changed'));
+  };
 
+  // Open straight away on the copy saved on this device, and sync behind it.
+  const savedAt = await restoreSnapshot(lastId).catch(err=>{ console.error(err); return null; });
+  if(savedAt){
+    state.offline = false; state.syncing = true;
+    state.pendingSync = (await pendingStudents()).length;
+    show();
+    const before = shownData();
+    try{
+      await connect(lastId, { behind:true });
+      state.syncing = false;
+      if(shownData() !== before) redrawWhenIdle(); else renderStatus();
+      document.dispatchEvent(new CustomEvent('timetable:changed'));
+    }catch(err){
+      console.error(err);
+      state.syncing = false; state.offline = true;
+      renderStatus();
+      toast(`You're offline. Showing your timetable saved ${savedOn(savedAt)}.`);
+    }
+    return;
+  }
+
+  // Nothing saved on this device yet: wait for the server.
   try{
     await connect(lastId);
   }catch(err){
     console.error(err);
-    const savedAt = await restoreSnapshot(lastId);
     state.offline = true;
     state.pendingSync = (await pendingStudents()).length;
-    toast(savedAt
-      ? `You're offline. Showing your timetable saved ${new Date(savedAt).toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })}.`
-      : 'Could not reach the timetable server. Check your connection and reload.');
+    toast('Could not reach the timetable server. Check your connection and reload.');
   }
-  render();
-  hideSplash();
-  startReminders();
-  document.dispatchEvent(new CustomEvent('timetable:changed'));
+  show();
 })();
 
 /** Back online: send queued changes, reload everything, and say so. */

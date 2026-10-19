@@ -73,7 +73,7 @@
     limit(n){ this._limit=n; return this; }
     single(){ this._single='single'; return this; }
     maybeSingle(){ this._single='maybe'; return this; }
-    then(res, rej){ return Promise.resolve().then(()=>this.exec()).then(res, rej); }
+    then(res, rej){ return slow().then(()=>this.exec()).then(res, rej); }
     exec(){
       window.__FAKE_LOG__.push({ table:this.table, op:this.op, payload: clone(this.payload) });
       if(seed.failNetwork) return { data:null, error:{ message:'Failed to fetch' } };
@@ -123,6 +123,9 @@
     }
   }
 
+  // seed.latencyMs: every request waits this long, like a slow phone connection.
+  function slow(){ return seed.latencyMs ? new Promise(r=>setTimeout(r, seed.latencyMs)) : Promise.resolve(); }
+
   function setSession(user){
     session = user ? { access_token:'fake', user:{ id:user.id, email:user.email } } : null;
     authListeners.forEach(cb=>setTimeout(()=>cb(session?'SIGNED_IN':'SIGNED_OUT', session),0));
@@ -133,6 +136,7 @@
     from: t=>new Query(t),
     rpc: async (name, args)=>{
       window.__FAKE_LOG__.push({ rpc:name, args });
+      await slow();
       if(seed.failNetwork) return { data:null, error:{ message:'Failed to fetch' } };
       if(!rpcs[name]) return { data:null, error:{ code:'PGRST202', message:`Could not find the function public.${name}` } };
       return rpcs[name](args, { tables, users, uid: session && session.user.id });

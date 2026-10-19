@@ -39,6 +39,7 @@ CI proves the app builds, but only a real device can show that notifications arr
 - [ ] Turn on airplane mode and reopen it. The timetable should show, with **offline** in the header.
 - [ ] Still offline, tick another module. The header should say **1 change waiting to sync**.
 - [ ] Turn airplane mode off. You should see **You're back online. Your changes are synced.**, and the module should still be ticked after a reload.
+- [ ] Reopen it on a weak signal. Your timetable should show straight away with **syncing…** in the header, and the header should drop it once the sync is done.
 
 ## 5. Set up campuses and staff (after step 1)
 
