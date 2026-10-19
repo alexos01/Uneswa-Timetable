@@ -6,7 +6,8 @@ import { renderNoticeList } from './notices.js';
 import { isNative, requestNotificationPermission } from '../platform.js';
 import { pushAvailable } from '../push.js';
 import { courseTimetable, exportCoursePdf, exportPdf } from '../pdf.js';
-import { saveText } from '../platform.js';
+import { saveText, shareBlob } from '../platform.js';
+import { savedPdf, timetablePdf } from '../timetable-pdf.js';
 import { templateHeader, toCsv } from '../lib/csv.js';
 import { render } from '../render.js';
 import { facName, moduleYear, progName, programmesInFaculty, state, yearLabel } from '../state.js';
@@ -179,6 +180,8 @@ export function renderStudent(){
   right.appendChild(renderExamsCard(student));
   grid2.appendChild(right);
   wrap.appendChild(grid2);
+  const pdfCard = renderTimetablePdfCard();
+  if(pdfCard) wrap.appendChild(pdfCard);
 
   setTimeout(()=>{
     const facSel = document.getElementById('facSel');
@@ -369,6 +372,37 @@ export function renderWeekGrid(student){
     document.getElementById('exportPdfBtn').onclick = ()=>exportPdf(student);
     document.getElementById('exportIcsBtn').onclick = ()=>exportCalendar(student);
   },0);
+  return card;
+}
+
+/** The university's own timetable PDF, at the bottom of the page. Opens from the copy on
+    the device when there is one, so it works offline. */
+function renderTimetablePdfCard(){
+  const pdf = timetablePdf();
+  if(!pdf) return null;
+  const card = document.createElement('div'); card.className = 'card pdfcard';
+  const day = pdf.at ? ' on ' + new Date(pdf.at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : '';
+  card.innerHTML = `<h2><span class="htitle">Official timetable</span></h2>
+    <p class="muted">The timetable PDF from the university, uploaded${esc(day)}. If a class here looks different, the PDF and your department have the final word.</p>
+    <div class="row"><a class="btn secondary" id="ttPdfLink" href="${esc(pdf.url)}" target="_blank" rel="noopener">Open the PDF</a>
+      <span class="muted" id="ttPdfState"></span></div>`;
+  const link = card.querySelector('#ttPdfLink'), note = card.querySelector('#ttPdfState');
+  savedPdf().then(blob=>{
+    if(blob){
+      note.textContent = 'Saved on this device';
+      if(!isNative){ link.href = URL.createObjectURL(blob); link.download = pdf.name; }
+    }else if(state.offline){
+      link.removeAttribute('href'); link.classList.add('disabled');
+      note.textContent = 'Not saved on this device yet. Open the app once with a connection.';
+    }
+  });
+  if(isNative) link.onclick = async e=>{
+    e.preventDefault();
+    try{
+      const blob = await savedPdf() || await fetch(pdf.url).then(r=>{ if(!r.ok) throw new Error('download failed'); return r.blob(); });
+      await shareBlob(blob, pdf.name, 'Open the timetable PDF');
+    }catch(err){ if(!/cancel/i.test(err?.message||'')) toast('Could not open the PDF: '+(err?.message||err)); }
+  };
   return card;
 }
 

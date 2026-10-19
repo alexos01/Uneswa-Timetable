@@ -7,6 +7,7 @@ import { restoreSnapshot, saveSnapshot } from './cache.js';
 import { flushOutbox, pendingStudents } from './sync.js';
 import { hideSplash, initShell, initWebApp } from './platform.js';
 import { toast } from './util.js';
+import { keepPdfOnDevice } from './timetable-pdf.js';
 
 function readLocal(key){ try{ return localStorage.getItem(key); }catch{ return null; } }
 
@@ -142,4 +143,5 @@ document.addEventListener('timetable:changed', ()=>{
   try{ localStorage.setItem('uneswa_campus', state.campusId); }catch{}
   renderStatus();
   saveSnapshot(); // the campus copy is only rewritten after a fresh load
+  if(!state.offline && !state.syncing) keepPdfOnDevice();
 });

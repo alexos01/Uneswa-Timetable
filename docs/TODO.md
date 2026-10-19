@@ -51,6 +51,7 @@ CI proves the app builds, but only a real device can show that notifications arr
 - [ ] As a lecturer, post a test for a module that runs on two courses (MAT111, say) and pick one under **Course**. Only students taking it on that course should see it; **All courses** reaches everyone on the module.
 - [ ] Add class reps with the role *Class rep* and assign the modules for their class. They sign in under **Staff** and land on their **Class rep** tab, where they can do what a lecturer can for those modules, and post announcements to their class.
 - [ ] Post a first announcement to check that students see it under **Announcements**.
+- [ ] Under **Staff → Settings → Official timetable PDF**, upload each campus's timetable PDF from the university. Students find it at the bottom of **My Timetable**, and it opens offline once the app has been opened online.
 
 ## 6. Turn on push notifications for the web app (after step 1)
 

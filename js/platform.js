@@ -86,6 +86,18 @@ export async function saveText(text, filename, mime = 'text/csv'){
   return 'shared';
 }
 
+/** Native only: hands a downloaded file (a Blob) to the share sheet, so the student can open or keep it. */
+export async function shareBlob(blob, filename, dialogTitle = 'Open or save'){
+  const data = await new Promise((resolve, reject)=>{
+    const r = new FileReader();
+    r.onload = ()=>resolve(String(r.result).split(',')[1]);
+    r.onerror = ()=>reject(r.error);
+    r.readAsDataURL(blob);
+  });
+  const { uri } = await Filesystem.writeFile({ path: filename, data, directory: 'CACHE' });
+  await Share.share({ title: filename, files: [uri], dialogTitle });
+}
+
 /* Notifications */
 export async function requestNotificationPermission(){
   if(!isNative){

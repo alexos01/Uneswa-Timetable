@@ -1,6 +1,23 @@
 import { countDuplicates, removeDuplicates, sb, scoped, updateSemester, campusName } from '../db.js';
 import { state } from '../state.js';
 import { esc, toast } from '../util.js';
+import { removeTimetablePdf, timetablePdf, uploadTimetablePdf } from '../timetable-pdf.js';
+import { render } from '../render.js';
+
+const MAX_PDF_MB = 20; // the bucket's limit (migration 004)
+
+/** Upload, replace or remove the university's timetable PDF for this campus. */
+function pdfSection(){
+  const pdf = timetablePdf();
+  const day = pdf?.at ? new Date(pdf.at).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : '';
+  return `<div class="divider"></div>
+    <h2><span class="htitle">Official timetable PDF</span></h2>
+    ${pdf
+      ? `<div class="infobox">Students see <b>${esc(pdf.name)}</b>${day ? `, uploaded ${esc(day)},` : ''} at the bottom of My Timetable. <a href="${esc(pdf.url)}" target="_blank" rel="noopener">Open it</a></div>`
+      : `<div class="muted" style="margin-bottom:10px;">Upload the university's timetable PDF and students will find it at the bottom of My Timetable, offline too.</div>`}
+    <div class="field"><label for="ttPdfFile">${pdf ? 'Replace with' : 'PDF file'} (up to ${MAX_PDF_MB} MB)</label><input id="ttPdfFile" type="file" accept="application/pdf,.pdf"></div>
+    <div class="row"><button class="btn" id="ttPdfUpload">Upload</button>${pdf ? '<button class="btn danger" id="ttPdfRemove">Remove</button>' : ''}</div>`;
+}
 
 /* Settings */
 export function renderAdminSettings(){
@@ -11,6 +28,7 @@ export function renderAdminSettings(){
     <div class="field"><label>Semester / version label</label>
       <input id="semInput" value="${esc(state.meta.semester)}" placeholder="e.g. Semester 1, 2026/2027"></div>
     <button class="btn secondary" id="saveSemBtn">Update label (no reset)</button>
+    ${state.caps.v4 ? pdfSection() : ''}
 
     <div class="divider"></div>
     <h2><span class="htitle">Clean up duplicate entries</span></h2>
@@ -30,6 +48,22 @@ export function renderAdminSettings(){
     card.querySelector('#saveSemBtn').onclick = async ()=>{
       try{ await updateSemester({ semester: card.querySelector('#semInput').value||'Not set' }); toast('Label updated'); }
       catch(err){ toast('Could not update: '+err.message); }
+    };
+    const upBtn = card.querySelector('#ttPdfUpload');
+    if(upBtn) upBtn.onclick = async ()=>{
+      const file = card.querySelector('#ttPdfFile').files[0];
+      if(!file){ toast('Choose the PDF first'); return; }
+      if(file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)){ toast('That is not a PDF'); return; }
+      if(file.size > MAX_PDF_MB*1024*1024){ toast(`The PDF must be ${MAX_PDF_MB} MB or smaller`); return; }
+      upBtn.disabled = true;
+      try{ await uploadTimetablePdf(file); toast('Timetable PDF uploaded. Students see it at the bottom of My Timetable.'); render(); }
+      catch(err){ toast('Could not upload: '+err.message); upBtn.disabled = false; }
+    };
+    const rmBtn = card.querySelector('#ttPdfRemove');
+    if(rmBtn) rmBtn.onclick = async ()=>{
+      if(!confirm('Take the timetable PDF down? Students will no longer see it.')) return;
+      try{ await removeTimetablePdf(); toast('Timetable PDF removed'); render(); }
+      catch(err){ toast('Could not remove: '+err.message); }
     };
     const cleanupBtn = card.querySelector('#cleanupBtn');
     if(cleanupBtn) cleanupBtn.onclick = async ()=>{

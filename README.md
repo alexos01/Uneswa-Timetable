@@ -23,6 +23,7 @@ js/
   reminders.js push.js   reminder scheduling, change alerts, Web Push subscription
   cache.js store.js      offline copy of the campus timetable (IndexedDB)
   sync.js                changes made offline, sent when back online
+  timetable-pdf.js       the university's timetable PDF: upload, offline copy
   lib/                   pure logic (search, reminders, notices, CSV, announcements), unit tested
   views/                 student, announcements, sign-in, admin tabs, lecturer, class rep
 vendor/                  pinned browser builds of supabase-js, jsPDF, autotable, @capacitor/core

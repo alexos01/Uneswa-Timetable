@@ -65,7 +65,10 @@ main{max-width:1220px;margin:0 auto;padding:24px;}
 .btn.terracotta{background:var(--terracotta);border-color:var(--terracotta);color:#fff;}
 .btn.danger{background:#fff;color:var(--terracotta);border-color:var(--terracotta-soft);}
 .btn.small{padding:6px 11px;font-size:12px;}
-.btn:disabled{opacity:.5;cursor:default;}
+.btn:disabled,.btn.disabled{opacity:.5;cursor:default;pointer-events:none;}
+.pdfcard{margin-top:16px;}
+.pdfcard p{margin:0 0 12px;}
+a.btn{display:inline-block;text-decoration:none;}
 .row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;}
 .minsrow{gap:6px;}
 .field .minsrow input{width:90px;}

@@ -23,6 +23,33 @@ create policy "class_notices: admin or lecturer writes" on public.class_notices 
       select 1 from public.modules m
       where m.campus_id = class_notices.campus_id and m.code = class_notices.code and m.programme_id = class_notices.programme_id)));
 
+-- 2. The official timetable PDF ---------------------------------------------------
+-- Campus admins upload the university's own timetable PDF; students find it at the
+-- bottom of My Timetable. Files live in the public "timetables" Storage bucket under
+-- <campus id>/, and campus_settings points at the current one.
+alter table public.campus_settings add column if not exists timetable_pdf_path text;
+alter table public.campus_settings add column if not exists timetable_pdf_name text;
+alter table public.campus_settings add column if not exists timetable_pdf_at   timestamptz;
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('timetables', 'timetables', true, 20971520, array['application/pdf'])
+on conflict (id) do update set public = true, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+-- Anyone can download from a public bucket; only the campus's admins can change its folder.
+drop policy if exists "timetables: campus admin reads"   on storage.objects;
+drop policy if exists "timetables: campus admin uploads" on storage.objects;
+drop policy if exists "timetables: campus admin updates" on storage.objects;
+drop policy if exists "timetables: campus admin deletes" on storage.objects;
+create policy "timetables: campus admin reads" on storage.objects for select to authenticated
+  using (bucket_id = 'timetables' and public.is_campus_admin((storage.foldername(name))[1]));
+create policy "timetables: campus admin uploads" on storage.objects for insert to authenticated
+  with check (bucket_id = 'timetables' and public.is_campus_admin((storage.foldername(name))[1]));
+create policy "timetables: campus admin updates" on storage.objects for update to authenticated
+  using (bucket_id = 'timetables' and public.is_campus_admin((storage.foldername(name))[1]))
+  with check (bucket_id = 'timetables' and public.is_campus_admin((storage.foldername(name))[1]));
+create policy "timetables: campus admin deletes" on storage.objects for delete to authenticated
+  using (bucket_id = 'timetables' and public.is_campus_admin((storage.foldername(name))[1]));
+
 -- Schema version, so the app can tell which features this database has.
 create or replace function public.app_schema_version() returns int
 language sql immutable as $$ select 4 $$;

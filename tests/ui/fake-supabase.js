@@ -132,7 +132,42 @@
   }
   if(seed.signedInAs){ const u = users.find(x=>x.email===seed.signedInAs); if(u) session = { access_token:'fake', user:{ id:u.id, email:u.email } }; }
 
+  // Storage: files kept in memory under "bucket/path"; seed.storage holds text files.
+  // Public URLs point at /__storage__/ on the app's own origin and fetch() is answered here.
+  const files = window.__FAKE_STORAGE__ = {};
+  for(const [k, text] of Object.entries(seed.storage || {})) files[k] = new Blob([text], { type:'application/pdf' });
+  const storageBase = `${location.origin}/__storage__/`;
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (input, init)=>{
+    const url = typeof input === 'string' ? input : input.url;
+    if(!url.startsWith(storageBase)) return realFetch(input, init);
+    await slow();
+    if(seed.failNetwork) throw new TypeError('Failed to fetch');
+    const blob = files[decodeURIComponent(url.slice(storageBase.length))];
+    return blob ? new Response(blob, { status:200, headers:{ 'Content-Type': blob.type } }) : new Response('Not found', { status:404 });
+  };
+  const storage = {
+    from(bucket){
+      return {
+        async upload(path, file){
+          await slow();
+          if(seed.failNetwork) return { data:null, error:{ message:'Failed to fetch' } };
+          if(files[`${bucket}/${path}`]) return { data:null, error:{ message:'The resource already exists' } };
+          files[`${bucket}/${path}`] = file;
+          return { data:{ path }, error:null };
+        },
+        async remove(paths){
+          await slow();
+          for(const p of paths) delete files[`${bucket}/${p}`];
+          return { data:[], error:null };
+        },
+        getPublicUrl(path){ return { data:{ publicUrl: storageBase + encodeURIComponent(`${bucket}/${path}`) } }; },
+      };
+    },
+  };
+
   const client = {
+    storage,
     from: t=>new Query(t),
     rpc: async (name, args)=>{
       window.__FAKE_LOG__.push({ rpc:name, args });
