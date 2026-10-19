@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { weeklyReminders, nextWeeklyFire, noticeReminders, planReminders, reminderId } from '../../js/lib/reminders.js';
+import { weeklyReminders, nextWeeklyFire, noticeReminders, planReminders, reminderId, parseMinutesBefore } from '../../js/lib/reminders.js';
 
 const sessions = [
   { id:'1', code:'CSC111', day:'Monday', start_time:'08:00', end_time:'08:50', venue:'SC.LEC.TH.I' },
@@ -62,4 +62,11 @@ test('a late notice reminds before the delayed start, with no evening-before', (
   assert.equal(r.length, 1);
   assert.equal(r[0].title, 'CSC111 starts in 10 min (running 15 min late)');
   assert.equal(r[0].at.getTime(), new Date(2026, 9, 20, 8, 5).getTime());
+});
+
+test('a typed reminder time is a whole number of minutes from 1 to 120', ()=>{
+  assert.equal(parseMinutesBefore('45'), 45);
+  assert.equal(parseMinutesBefore(' 120 '), 120);
+  assert.equal(parseMinutesBefore('1'), 1);
+  for(const bad of ['0', '121', '7.5', '-5', '', 'ten', null]) assert.equal(parseMinutesBefore(bad), null, String(bad));
 });

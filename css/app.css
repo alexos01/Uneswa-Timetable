@@ -66,6 +66,8 @@ main{max-width:1220px;margin:0 auto;padding:24px;}
 .btn.small{padding:6px 11px;font-size:12px;}
 .btn:disabled{opacity:.5;cursor:default;}
 .row{display:flex;gap:9px;flex-wrap:wrap;align-items:center;}
+.minsrow{gap:6px;}
+.field .minsrow input{width:90px;}
 
 .today-banner{background:var(--forest);color:#fff;border-radius:var(--radius);padding:20px 22px;margin-bottom:20px;}
 .today-banner .next{margin:0;font-size:24px;font-weight:700;font-family:var(--font-display);letter-spacing:-.015em;font-variant-numeric:tabular-nums;}

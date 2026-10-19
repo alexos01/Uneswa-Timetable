@@ -8,6 +8,17 @@
 const DAY_INDEX = { Sunday:0, Monday:1, Tuesday:2, Wednesday:3, Thursday:4, Friday:5, Saturday:6 };
 export const EVENING_BEFORE_HOUR = 18;
 export const MAX_PENDING = 60;
+// The push table accepts 1 to 120 (push_subscriptions.minutes_before).
+export const MIN_MINUTES_BEFORE = 1, MAX_MINUTES_BEFORE = 120;
+export const MINUTES_SHORTCUTS = [5, 10, 15, 30, 60];
+
+/** A typed "minutes before" as a whole number in range, or null when it isn't one. */
+export function parseMinutesBefore(value){
+  const s = String(value ?? '').trim();
+  if(!/^\d+$/.test(s)) return null;
+  const n = Number(s);
+  return n >= MIN_MINUTES_BEFORE && n <= MAX_MINUTES_BEFORE ? n : null;
+}
 
 function toMinutes(hhmm){
   const m = /^(\d{1,2}):(\d{2})/.exec(hhmm || '');

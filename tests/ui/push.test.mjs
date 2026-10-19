@@ -58,8 +58,16 @@ test('turning reminders on subscribes this browser with the student\'s sessions;
   assert.equal(sub.campus_id, 'kwaluseni');
   assert.equal(sub.minutes_before, 10);
 
-  await page.selectOption('#notifMins', '30');
+  await page.click('[data-mins="30"]');
   await page.waitForFunction(()=>window.__FAKE_TABLES__.push_subscriptions[0]?.minutes_before === 30);
+  await page.fill('#notifMins', '45');
+  await page.press('#notifMins', 'Enter');
+  await page.waitForFunction(()=>window.__FAKE_TABLES__.push_subscriptions[0]?.minutes_before === 45);
+  await page.fill('#notifMins', '500');
+  await page.press('#notifMins', 'Enter');
+  await page.waitForFunction(()=>document.querySelector('#notifMins').value === '45');
+  assert.match(await page.textContent('#toast'), /between 1 and 120/);
+  assert.equal(JSON.parse(await page.evaluate(()=>localStorage.getItem('uneswa_notif'))).minutesBefore, 45);
 
   await page.uncheck('#notifToggle');
   await page.waitForFunction(()=>window.__FAKE_TABLES__.push_subscriptions.length === 0);

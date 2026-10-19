@@ -13,6 +13,7 @@ import { facName, moduleYear, progName, programmesInFaculty, state, yearLabel } 
 import { esc, toast } from '../util.js';
 import { searchModules, sortSessions } from '../lib/modules.js';
 import { changeFor, formatDay, localIsoDate, noticeSummary } from '../lib/notices.js';
+import { MAX_MINUTES_BEFORE, MINUTES_SHORTCUTS, MIN_MINUTES_BEFORE, parseMinutesBefore } from '../lib/reminders.js';
 
 /* Student view */
 export function myModules(student){ return state.modules.filter(m => (student.module_ids||[]).includes(m.id)); }
@@ -161,7 +162,8 @@ export function renderStudent(){
       <h2><span class="htitle">Reminders</span></h2>
       <label class="row" style="font-size:13px;"><input type="checkbox" id="notifToggle" ${state.notif.enabled?'checked':''}> Notify me before class starts</label>
       <div class="field" style="margin-top:10px;"><label>Minutes before</label>
-        <select id="notifMins">${[5,10,15,30,60].map(m=>`<option value="${m}" ${state.notif.minutesBefore===m?'selected':''}>${m} minutes</option>`).join('')}</select></div>
+        <div class="row minsrow"><input id="notifMins" type="number" inputmode="numeric" min="${MIN_MINUTES_BEFORE}" max="${MAX_MINUTES_BEFORE}" step="1" value="${state.notif.minutesBefore}"> <span class="muted">minutes</span></div>
+        <div class="row minsrow" style="margin-top:6px;">${MINUTES_SHORTCUTS.map(m=>`<button class="btn small secondary" data-mins="${m}">${m}</button>`).join('')}</div></div>
       <div class="muted">${reminderHelp()}</div>
     </div>`;
   grid2.appendChild(left);
@@ -215,7 +217,14 @@ export function renderStudent(){
       }
       saveNotif();
     };
-    document.getElementById('notifMins').onchange = e=>{ state.notif.minutesBefore=Number(e.target.value); saveNotif(); };
+    const minsInput = document.getElementById('notifMins');
+    const setMins = n=>{ minsInput.value = n; if(n===state.notif.minutesBefore) return; state.notif.minutesBefore = n; saveNotif(); };
+    minsInput.onchange = ()=>{
+      const n = parseMinutesBefore(minsInput.value);
+      if(n===null){ toast(`Choose between ${MIN_MINUTES_BEFORE} and ${MAX_MINUTES_BEFORE} minutes`); minsInput.value = state.notif.minutesBefore; return; }
+      setMins(n);
+    };
+    document.querySelectorAll('[data-mins]').forEach(b=>{ b.onclick = ()=>setMins(Number(b.dataset.mins)); });
   },0);
 
   return wrap;
